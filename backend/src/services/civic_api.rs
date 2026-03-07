@@ -10,6 +10,7 @@ use crate::models::{
     AllElectionsResponse, Candidate, CandidateDetail, Channel, Contest, ContestDetail, Election,
     ElectionItem, ElectionsResponse, PollingLocation, VoterInfoResponse,
 };
+use crate::services::geocoder::GeocoderClient;
 
 const CIVIC_API_BASE: &str = "https://www.googleapis.com/civicinfo/v2";
 
@@ -107,22 +108,33 @@ pub struct CivicApiClient {
     cache: Cache<String, VoterInfoResponse>,
     elections_cache: Cache<String, ElectionsResponse>,
     all_elections_cache: Cache<String, AllElectionsResponse>,
+    geocoder: GeocoderClient,
 }
 
 impl CivicApiClient {
     pub fn new() -> Result<Self, AppError> {
         let api_key = env::var("GOOGLE_CIVIC_API_KEY")
             .map_err(|_| AppError::Config("GOOGLE_CIVIC_API_KEY".to_string()))?;
-        Ok(Self::build(api_key, CIVIC_API_BASE.to_string()))
+        Ok(Self::build(api_key, CIVIC_API_BASE.to_string(), GeocoderClient::new()))
     }
 
     /// Constructs a client pointing at a custom base URL. Used in tests to redirect
     /// requests to a mock server instead of the real Google Civic API.
     pub fn new_with_base_url(api_key: &str, base_url: &str) -> Self {
-        Self::build(api_key.to_string(), base_url.to_string())
+        Self::build(api_key.to_string(), base_url.to_string(), GeocoderClient::new())
     }
 
-    fn build(api_key: String, base_url: String) -> Self {
+    /// Constructs a client with custom base URLs for both the Civic API and Nominatim.
+    /// Used in tests that also need to mock geocoding.
+    pub fn new_with_urls(api_key: &str, civic_base_url: &str, geocoder_base_url: &str) -> Self {
+        Self::build(
+            api_key.to_string(),
+            civic_base_url.to_string(),
+            GeocoderClient::new_with_base_url(geocoder_base_url),
+        )
+    }
+
+    fn build(api_key: String, base_url: String, geocoder: GeocoderClient) -> Self {
         let cache = Cache::builder()
             .time_to_live(Duration::from_secs(15 * 60))
             .build();
@@ -142,6 +154,7 @@ impl CivicApiClient {
             cache,
             elections_cache,
             all_elections_cache,
+            geocoder,
         }
     }
 
@@ -151,7 +164,17 @@ impl CivicApiClient {
         }
 
         let raw = self.fetch_raw(address).await?;
-        let result = map_voter_info(raw);
+        let mut result = map_voter_info(raw);
+
+        for loc in &mut result.polling_locations {
+            if let Some(addr) = &loc.address {
+                let addr = addr.clone();
+                let coords = self.geocoder.geocode(&addr).await;
+                loc.lat = coords.map(|(lat, _)| lat);
+                loc.lng = coords.map(|(_, lng)| lng);
+            }
+        }
+
         self.cache.insert(address.to_string(), result.clone()).await;
         Ok(result)
     }
@@ -295,6 +318,8 @@ fn map_voter_info(raw: ApiVoterInfoResponse) -> VoterInfoResponse {
                     address,
                     hours: loc.polling_hours,
                     location_name,
+                    lat: None,
+                    lng: None,
                 }
             })
             .collect(),
