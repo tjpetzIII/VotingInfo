@@ -1,20 +1,13 @@
-mod errors;
-mod middleware;
-mod models;
-mod routes;
-mod services;
-
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::{middleware as axum_middleware, routing::get, Json, Router};
-use serde_json::{json, Value};
+use axum::{middleware as axum_middleware, routing::get, Router};
 use tower_governor::{governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor, GovernorLayer};
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use services::civic_api::CivicApiClient;
+use backend::{health_handler, middleware, routes, services::civic_api::CivicApiClient};
 
 #[tokio::main]
 async fn main() {
@@ -61,7 +54,7 @@ async fn main() {
         .with_state(civic_client);
 
     let app = Router::new()
-        .route("/health", get(health))
+        .route("/health", get(health_handler))
         .merge(api_routes)
         .layer(axum_middleware::from_fn(middleware::log_request))
         .layer(cors);
@@ -76,8 +69,4 @@ async fn main() {
     )
     .await
     .unwrap();
-}
-
-async fn health() -> Json<Value> {
-    Json(json!({ "status": "ok" }))
 }

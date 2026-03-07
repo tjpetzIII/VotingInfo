@@ -13,6 +13,7 @@ use crate::models::{
 
 const CIVIC_API_BASE: &str = "https://www.googleapis.com/civicinfo/v2";
 
+
 // Raw deserialization types that match Google's JSON shape exactly.
 
 #[derive(Deserialize)]
@@ -102,6 +103,7 @@ struct ApiVoterInfoResponse {
 pub struct CivicApiClient {
     client: Client,
     api_key: String,
+    base_url: String,
     cache: Cache<String, VoterInfoResponse>,
     elections_cache: Cache<String, ElectionsResponse>,
     all_elections_cache: Cache<String, AllElectionsResponse>,
@@ -111,7 +113,16 @@ impl CivicApiClient {
     pub fn new() -> Result<Self, AppError> {
         let api_key = env::var("GOOGLE_CIVIC_API_KEY")
             .map_err(|_| AppError::Config("GOOGLE_CIVIC_API_KEY".to_string()))?;
+        Ok(Self::build(api_key, CIVIC_API_BASE.to_string()))
+    }
 
+    /// Constructs a client pointing at a custom base URL. Used in tests to redirect
+    /// requests to a mock server instead of the real Google Civic API.
+    pub fn new_with_base_url(api_key: &str, base_url: &str) -> Self {
+        Self::build(api_key.to_string(), base_url.to_string())
+    }
+
+    fn build(api_key: String, base_url: String) -> Self {
         let cache = Cache::builder()
             .time_to_live(Duration::from_secs(15 * 60))
             .build();
@@ -124,13 +135,14 @@ impl CivicApiClient {
             .time_to_live(Duration::from_secs(15 * 60))
             .build();
 
-        Ok(Self {
+        Self {
             client: Client::new(),
             api_key,
+            base_url,
             cache,
             elections_cache,
             all_elections_cache,
-        })
+        }
     }
 
     pub async fn get_voter_info(&self, address: &str) -> Result<VoterInfoResponse, AppError> {
@@ -165,7 +177,7 @@ impl CivicApiClient {
 
         let response = self
             .client
-            .get(format!("{CIVIC_API_BASE}/elections"))
+            .get(format!("{}/elections", self.base_url))
             .query(&[("key", &self.api_key)])
             .send()
             .await?;
@@ -210,7 +222,7 @@ impl CivicApiClient {
     async fn fetch_raw(&self, address: &str) -> Result<ApiVoterInfoResponse, AppError> {
         let response = self
             .client
-            .get(format!("{CIVIC_API_BASE}/voterinfo"))
+            .get(format!("{}/voterinfo", self.base_url))
             .query(&[("address", address), ("key", &self.api_key)])
             .send()
             .await?;

@@ -43,3 +43,47 @@ impl IntoResponse for AppError {
         (status, Json(json!({ "error": message, "code": code }))).into_response()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::StatusCode;
+
+    fn status(err: AppError) -> StatusCode {
+        err.into_response().status()
+    }
+
+    #[test]
+    fn not_found_is_404() {
+        assert_eq!(status(AppError::NotFound), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn validation_error_is_422() {
+        assert_eq!(
+            status(AppError::ValidationError("bad address".into())),
+            StatusCode::UNPROCESSABLE_ENTITY
+        );
+    }
+
+    #[test]
+    fn rate_limited_is_429() {
+        assert_eq!(status(AppError::RateLimited), StatusCode::TOO_MANY_REQUESTS);
+    }
+
+    #[test]
+    fn external_api_error_is_502() {
+        assert_eq!(
+            status(AppError::ExternalApiError { status: 403, message: "forbidden".into() }),
+            StatusCode::BAD_GATEWAY
+        );
+    }
+
+    #[test]
+    fn config_error_is_500() {
+        assert_eq!(
+            status(AppError::Config("MISSING_KEY".into())),
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
+    }
+}

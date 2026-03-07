@@ -82,3 +82,64 @@ pub struct ElectionsResponse {
     pub election: Election,
     pub contests: Vec<ContestDetail>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn election_roundtrips_through_json() {
+        let election = Election {
+            id: "9001".into(),
+            name: "General Election".into(),
+            election_day: "2025-11-04".into(),
+        };
+        let json = serde_json::to_value(&election).unwrap();
+        assert_eq!(json["id"], "9001");
+        assert_eq!(json["name"], "General Election");
+        assert_eq!(json["election_day"], "2025-11-04");
+
+        let back: Election = serde_json::from_value(json).unwrap();
+        assert_eq!(back.id, election.id);
+    }
+
+    #[test]
+    fn all_elections_response_deserializes() {
+        let json = r#"{
+            "elections": [
+                {"id": "1", "name": "Primary", "election_day": "2025-03-01"},
+                {"id": "2", "name": "General", "election_day": "2025-11-04", "ocd_division_id": "ocd-division/country:us"}
+            ]
+        }"#;
+        let resp: AllElectionsResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.elections.len(), 2);
+        assert_eq!(resp.elections[0].name, "Primary");
+        assert!(resp.elections[0].ocd_division_id.is_none());
+        assert!(resp.elections[1].ocd_division_id.is_some());
+    }
+
+    #[test]
+    fn voter_info_response_with_empty_collections() {
+        let resp = VoterInfoResponse {
+            election: Election { id: "1".into(), name: "Test".into(), election_day: "2025-01-01".into() },
+            polling_locations: vec![],
+            contests: vec![],
+        };
+        let json = serde_json::to_value(&resp).unwrap();
+        assert_eq!(json["polling_locations"].as_array().unwrap().len(), 0);
+        assert_eq!(json["contests"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn polling_location_all_fields_optional() {
+        let loc = PollingLocation {
+            name: None,
+            address: None,
+            hours: None,
+            location_name: None,
+        };
+        let json = serde_json::to_value(&loc).unwrap();
+        assert!(json["name"].is_null());
+        assert!(json["address"].is_null());
+    }
+}
