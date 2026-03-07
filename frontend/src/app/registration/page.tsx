@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
 import { useIntl, FormattedMessage } from "react-intl";
 import {
   fetchRegistration,
@@ -8,6 +8,7 @@ import {
   type RegistrationAddress,
   type ElectionOfficial,
 } from "@/lib/api";
+import AddressForm from "@/components/AddressForm";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -126,30 +127,18 @@ function AddressBlock({ addr, labelId }: { addr: RegistrationAddress; labelId: s
 
 export default function RegistrationPage() {
   const intl = useIntl();
-  const [street, setStreet] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
-  const [zip, setZip] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [result, setResult] = useState<RegistrationResponse | null>(null);
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
+  async function handleAddressSubmit(address: string) {
+    setApiError(null);
     setResult(null);
-
-    if (!street || !city || !state || !zip) {
-      setError(intl.formatMessage({ id: "registration.fillAllFields" }));
-      return;
-    }
-
     setLoading(true);
     try {
-      const address = `${street}, ${city}, ${state} ${zip}`;
       setResult(await fetchRegistration(address));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setApiError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setLoading(false);
     }
@@ -176,82 +165,18 @@ export default function RegistrationPage() {
           <FormattedMessage id="registration.subtitle" />
         </p>
 
-        {error && (
+        {apiError && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-            {error}
+            {apiError}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div>
-            <label htmlFor="street" className="block text-sm font-medium text-gray-700 mb-1">
-              <FormattedMessage id="registration.streetLabel" />
-            </label>
-            <input
-              id="street"
-              type="text"
-              value={street}
-              onChange={(e) => setStreet(e.target.value)}
-              placeholder={intl.formatMessage({ id: "registration.streetPlaceholder" })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
-              <FormattedMessage id="registration.cityLabel" />
-            </label>
-            <input
-              id="city"
-              type="text"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              placeholder={intl.formatMessage({ id: "registration.cityPlaceholder" })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-1">
-                <FormattedMessage id="registration.stateLabel" />
-              </label>
-              <input
-                id="state"
-                type="text"
-                value={state}
-                onChange={(e) => setState(e.target.value.toUpperCase().slice(0, 2))}
-                placeholder={intl.formatMessage({ id: "registration.statePlaceholder" })}
-                maxLength={2}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
-              />
-            </div>
-            <div className="flex-1">
-              <label htmlFor="zip" className="block text-sm font-medium text-gray-700 mb-1">
-                <FormattedMessage id="registration.zipLabel" />
-              </label>
-              <input
-                id="zip"
-                type="text"
-                value={zip}
-                onChange={(e) => setZip(e.target.value.replace(/\D/g, "").slice(0, 5))}
-                placeholder={intl.formatMessage({ id: "registration.zipPlaceholder" })}
-                maxLength={5}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-2 w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-2.5 rounded-lg transition-colors"
-          >
-            {loading
-              ? intl.formatMessage({ id: "registration.submitting" })
-              : intl.formatMessage({ id: "registration.submit" })}
-          </button>
-        </form>
+        <AddressForm
+          onSubmit={handleAddressSubmit}
+          loading={loading}
+          submitLabel={intl.formatMessage({ id: "registration.submit" })}
+          loadingLabel={intl.formatMessage({ id: "registration.submitting" })}
+        />
       </div>
 
       {/* Results */}

@@ -53,6 +53,18 @@ const messages = {
   "candidate.phone": "Phone:",
   "candidate.email": "Email:",
 
+  "addressForm.streetLabel": "Street Address",
+  "addressForm.streetPlaceholder": "e.g. 123 Main St",
+  "addressForm.cityLabel": "City",
+  "addressForm.cityPlaceholder": "e.g. Austin",
+  "addressForm.stateLabel": "State",
+  "addressForm.statePlaceholder": "e.g. TX",
+  "addressForm.zipLabel": "ZIP Code",
+  "addressForm.zipPlaceholder": "e.g. 78701",
+  "addressForm.fillAllFields": "Please fill in all fields.",
+  "addressForm.stateError": "State must be 2 letters.",
+  "addressForm.zipError": "ZIP must be 5 digits.",
+
   "nav.registration": "Registration",
 
   "registration.title": "Voter Registration",

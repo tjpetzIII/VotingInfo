@@ -55,6 +55,18 @@ const messages: Record<MessageKey, string> = {
   "candidate.phone": "Teléfono:",
   "candidate.email": "Correo:",
 
+  "addressForm.streetLabel": "Dirección",
+  "addressForm.streetPlaceholder": "ej. 123 Main St",
+  "addressForm.cityLabel": "Ciudad",
+  "addressForm.cityPlaceholder": "ej. Austin",
+  "addressForm.stateLabel": "Estado",
+  "addressForm.statePlaceholder": "ej. TX",
+  "addressForm.zipLabel": "Código Postal",
+  "addressForm.zipPlaceholder": "ej. 78701",
+  "addressForm.fillAllFields": "Por favor completa todos los campos.",
+  "addressForm.stateError": "El estado debe tener 2 letras.",
+  "addressForm.zipError": "El código postal debe tener 5 dígitos.",
+
   "nav.registration": "Registro",
 
   "registration.title": "Registro de Votante",
