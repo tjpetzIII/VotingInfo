@@ -1,104 +1,55 @@
 "use client";
 
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchAllElections, ElectionItem } from "@/lib/api";
 
 export default function Home() {
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
-  const [zip, setZip] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-
-    if (!city || !state || !zip) {
-      setError("Please fill in all fields.");
-      return;
-    }
-
-    // TODO: call backend API with address info
-    alert(`Looking up: ${city}, ${state} ${zip}`);
-  }
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["all-elections"],
+    queryFn: fetchAllElections,
+  });
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-full py-16 px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          Find Your Voter Info
-        </h1>
-        <p className="text-gray-500 mb-6 text-sm">
-          Enter your address to find polling locations, sample ballots, and more.
-        </p>
+    <div className="max-w-3xl mx-auto py-12 px-4">
+      <h1 className="text-2xl font-bold text-gray-900 mb-1">All Elections</h1>
+      <p className="text-sm text-gray-500 mb-6">
+        Available elections from the Google Civic Information API.
+      </p>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-            {error}
-          </div>
-        )}
+      {isLoading && (
+        <div className="flex justify-center py-16">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div>
-            <label
-              htmlFor="city"
-              className="block text-sm font-medium text-gray-700 mb-1"
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+          {error instanceof Error ? error.message : "Failed to load elections."}
+        </div>
+      )}
+
+      {data && (
+        <ul className="flex flex-col gap-3">
+          {data.elections.map((election: ElectionItem) => (
+            <li
+              key={election.id}
+              className="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-4 flex items-center justify-between gap-4"
             >
-              City
-            </label>
-            <input
-              id="city"
-              type="text"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              placeholder="e.g. Austin"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="state"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              State
-            </label>
-            <input
-              id="state"
-              type="text"
-              value={state}
-              onChange={(e) => setState(e.target.value.toUpperCase().slice(0, 2))}
-              placeholder="e.g. TX"
-              maxLength={2}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="zip"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              ZIP Code
-            </label>
-            <input
-              id="zip"
-              type="text"
-              value={zip}
-              onChange={(e) => setZip(e.target.value.replace(/\D/g, "").slice(0, 5))}
-              placeholder="e.g. 78701"
-              maxLength={5}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition-colors"
-          >
-            Find My Polling Info
-          </button>
-        </form>
-      </div>
+              <div>
+                <p className="font-medium text-gray-900">{election.name}</p>
+                {election.ocd_division_id && (
+                  <p className="text-xs text-gray-400 mt-0.5">{election.ocd_division_id}</p>
+                )}
+              </div>
+              <div className="text-right shrink-0">
+                <span className="inline-block bg-blue-50 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                  {election.election_day}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
