@@ -8,6 +8,7 @@ frontend/out/
 
 # Rust
 backend/target/
+backend/.env
 
 # Environment
 .env
