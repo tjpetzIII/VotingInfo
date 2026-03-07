@@ -6,7 +6,7 @@ use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use serde_json::{json, Value};
 use tower::ServiceExt;
-use wiremock::matchers::{method, path};
+use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 // ---------------------------------------------------------------------------
@@ -15,6 +15,11 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn make_app(mock_server: &MockServer) -> axum::Router {
     let client = CivicApiClient::new_with_base_url("test_key", &mock_server.uri());
+    build_app_router(Arc::new(client))
+}
+
+fn make_app_with_geocoder(civic_mock: &MockServer, geocoder_mock: &MockServer) -> axum::Router {
+    let client = CivicApiClient::new_with_urls("test_key", &civic_mock.uri(), &geocoder_mock.uri());
     build_app_router(Arc::new(client))
 }
 
@@ -240,6 +245,109 @@ async fn voter_info_missing_address_returns_422() {
 
     // Axum returns 400 for a missing required query parameter.
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/voter-info — geocoding
+// ---------------------------------------------------------------------------
+
+fn nominatim_response() -> Value {
+    serde_json::json!([{
+        "lat": "39.7817",
+        "lon": "-89.6501",
+        "display_name": "Springfield, IL"
+    }])
+}
+
+#[tokio::test]
+async fn voter_info_polling_locations_include_lat_lng() {
+    let civic_mock = MockServer::start().await;
+    let geocoder_mock = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(voter_info_response()))
+        .mount(&civic_mock)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/search"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(nominatim_response()))
+        .mount(&geocoder_mock)
+        .await;
+
+    let response = make_app_with_geocoder(&civic_mock, &geocoder_mock)
+        .oneshot(get("/api/voter-info?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    let loc = &json["polling_locations"][0];
+    assert!(loc["lat"].is_number(), "lat should be a number");
+    assert!(loc["lng"].is_number(), "lng should be a number");
+    assert!((loc["lat"].as_f64().unwrap() - 39.7817).abs() < 0.001);
+    assert!((loc["lng"].as_f64().unwrap() - -89.6501).abs() < 0.001);
+}
+
+#[tokio::test]
+async fn voter_info_geocoder_sends_correct_user_agent() {
+    let civic_mock = MockServer::start().await;
+    let geocoder_mock = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(voter_info_response()))
+        .mount(&civic_mock)
+        .await;
+
+    // Only match requests that include the correct User-Agent header.
+    Mock::given(method("GET"))
+        .and(path("/search"))
+        .and(header("User-Agent", "voter-info-app/1.0"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(nominatim_response()))
+        .expect(1)
+        .mount(&geocoder_mock)
+        .await;
+
+    make_app_with_geocoder(&civic_mock, &geocoder_mock)
+        .oneshot(get("/api/voter-info?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+    // wiremock verifies .expect(1) on drop — confirms User-Agent was set correctly
+}
+
+#[tokio::test]
+async fn voter_info_geocode_failure_returns_null_lat_lng() {
+    let civic_mock = MockServer::start().await;
+    let geocoder_mock = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(voter_info_response()))
+        .mount(&civic_mock)
+        .await;
+
+    // Nominatim returns empty — no match found
+    Mock::given(method("GET"))
+        .and(path("/search"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
+        .mount(&geocoder_mock)
+        .await;
+
+    let response = make_app_with_geocoder(&civic_mock, &geocoder_mock)
+        .oneshot(get("/api/voter-info?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    let loc = &json["polling_locations"][0];
+    // lat/lng keys must be present but null
+    assert!(loc.get("lat").is_some(), "lat key should be present");
+    assert!(loc.get("lng").is_some(), "lng key should be present");
+    assert!(loc["lat"].is_null(), "lat should be null when geocoding fails");
+    assert!(loc["lng"].is_null(), "lng should be null when geocoding fails");
 }
 
 // ---------------------------------------------------------------------------

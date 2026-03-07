@@ -13,6 +13,8 @@ pub struct PollingLocation {
     pub address: Option<String>,
     pub hours: Option<String>,
     pub location_name: Option<String>,
+    pub lat: Option<f64>,
+    pub lng: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -137,6 +139,8 @@ mod tests {
             address: None,
             hours: None,
             location_name: None,
+            lat: None,
+            lng: None,
         };
         let json = serde_json::to_value(&loc).unwrap();
         assert!(json["name"].is_null());
