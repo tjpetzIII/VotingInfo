@@ -6,7 +6,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 
 use crate::errors::AppError;
-use crate::models::{AllElectionsResponse, ElectionsResponse, VoterInfoResponse};
+use crate::models::{AllElectionsResponse, ElectionsResponse, RegistrationResponse, VoterInfoResponse};
 use crate::services::civic_api::CivicApiClient;
 
 #[derive(Deserialize)]
@@ -34,5 +34,13 @@ pub async fn list_all_elections(
     State(client): State<Arc<CivicApiClient>>,
 ) -> Result<Json<AllElectionsResponse>, AppError> {
     let info = client.get_all_elections().await?;
+    Ok(Json(info))
+}
+
+pub async fn get_registration(
+    State(client): State<Arc<CivicApiClient>>,
+    Query(params): Query<AddressQuery>,
+) -> Result<Json<RegistrationResponse>, AppError> {
+    let info = client.get_registration(&params.address).await?;
     Ok(Json(info))
 }

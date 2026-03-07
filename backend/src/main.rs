@@ -50,6 +50,7 @@ async fn main() {
         .route("/api/voter-info", get(routes::elections::get_voter_info))
         .route("/api/elections", get(routes::elections::get_elections))
         .route("/api/all-elections", get(routes::elections::list_all_elections))
+        .route("/api/registration", get(routes::elections::get_registration))
         .layer(GovernorLayer { config: governor_conf })
         .with_state(civic_client);
 

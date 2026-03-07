@@ -22,6 +22,9 @@ export default function Header() {
           <Link href="/voter-info" className="text-gray-600 hover:text-blue-600 transition-colors">
             {intl.formatMessage({ id: "nav.voterInfo" })}
           </Link>
+          <Link href="/registration" className="text-gray-600 hover:text-blue-600 transition-colors">
+            {intl.formatMessage({ id: "nav.registration" })}
+          </Link>
           <LocaleSwitcher />
         </nav>
       </div>

@@ -87,6 +87,64 @@ fn voter_info_response() -> Value {
     })
 }
 
+fn voter_info_with_registration() -> Value {
+    json!({
+        "election": {
+            "id": "9001",
+            "name": "General Election",
+            "electionDay": "2025-11-04"
+        },
+        "pollingLocations": [],
+        "contests": [],
+        "state": [
+            {
+                "electionAdministrationBody": {
+                    "name": "Illinois State Board of Elections",
+                    "electionInfoUrl": "https://www.elections.il.gov/",
+                    "electionRegistrationUrl": "https://ova.elections.il.gov/",
+                    "electionRegistrationConfirmationUrl": "https://www.elections.il.gov/VotingAndRegistrationSystems/RegistrationLookUpByAddress.aspx",
+                    "absenteeVotingInfoUrl": "https://www.elections.il.gov/AbsenteeBallots/",
+                    "votingLocationFinderUrl": "https://www.elections.il.gov/ElectionInformation/PollingPlaceLocator.aspx",
+                    "ballotInfoUrl": "https://www.elections.il.gov/ElectionInformation/",
+                    "electionRulesUrl": "https://www.elections.il.gov/ElectionOperations/",
+                    "voter_services": "Voter Registration|Absentee Ballots|Early Voting",
+                    "hoursOfOperation": "Monday-Friday 8am-5pm CT",
+                    "registrationDeadline": "10/08/2025",
+                    "correspondenceAddress": {
+                        "locationName": "Illinois State Board of Elections",
+                        "line1": "2329 S. MacArthur Blvd",
+                        "city": "Springfield",
+                        "state": "IL",
+                        "zip": "62704"
+                    },
+                    "electionOfficials": [
+                        {
+                            "name": "Steve Sandvoss",
+                            "title": "Executive Director",
+                            "emailAddress": "info@elections.il.gov",
+                            "officePhoneNumber": "217-782-4141",
+                            "faxNumber": "217-782-5959"
+                        }
+                    ]
+                }
+            }
+        ]
+    })
+}
+
+fn voter_info_without_registration() -> Value {
+    json!({
+        "election": {
+            "id": "9001",
+            "name": "General Election",
+            "electionDay": "2025-11-04"
+        },
+        "pollingLocations": [],
+        "contests": [],
+        "state": []
+    })
+}
+
 fn parse_error_response() -> Value {
     json!({
         "error": {
@@ -348,6 +406,98 @@ async fn voter_info_geocode_failure_returns_null_lat_lng() {
     assert!(loc.get("lng").is_some(), "lng key should be present");
     assert!(loc["lat"].is_null(), "lat should be null when geocoding fails");
     assert!(loc["lng"].is_null(), "lng should be null when geocoding fails");
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/registration
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn registration_returns_data_when_state_present() {
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(voter_info_with_registration()))
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/registration?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    assert_eq!(json["available"], true);
+    assert_eq!(json["registration_url"], "https://ova.elections.il.gov/");
+    assert_eq!(json["registration_deadline"], "10/08/2025");
+    assert_eq!(json["admin_name"], "Illinois State Board of Elections");
+    let officials = json["election_officials"].as_array().unwrap();
+    assert_eq!(officials.len(), 1);
+    assert_eq!(officials[0]["name"], "Steve Sandvoss");
+    assert_eq!(officials[0]["email"], "info@elections.il.gov");
+    assert_eq!(officials[0]["phone"], "217-782-4141");
+    assert_eq!(officials[0]["fax"], "217-782-5959");
+    // Additional fields
+    assert_eq!(json["election_info_url"], "https://www.elections.il.gov/");
+    assert_eq!(json["absentee_voting_info_url"], "https://www.elections.il.gov/AbsenteeBallots/");
+    assert_eq!(json["hours_of_operation"], "Monday-Friday 8am-5pm CT");
+    let services = json["voter_services"].as_array().unwrap();
+    assert_eq!(services.len(), 3);
+    assert_eq!(services[0], "Voter Registration");
+    assert_eq!(json["correspondence_address"]["city"], "Springfield");
+}
+
+#[tokio::test]
+async fn registration_returns_unavailable_when_no_state() {
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(voter_info_without_registration()))
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/registration?address=123+Main+St,+Nowhere,+XX+00000"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    assert_eq!(json["available"], false);
+    // Optional fields must not be present when unavailable
+    assert!(json.get("registration_url").is_none() || json["registration_url"].is_null());
+    assert!(json.get("admin_name").is_none() || json["admin_name"].is_null());
+}
+
+#[tokio::test]
+async fn registration_missing_address_returns_400() {
+    let mock_server = MockServer::start().await;
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/registration"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn registration_parse_error_returns_422() {
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(400).set_body_json(parse_error_response()))
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/registration?address=bad"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let json = body_json(response.into_body()).await;
+    assert_eq!(json["code"], "VALIDATION_ERROR");
 }
 
 // ---------------------------------------------------------------------------

@@ -23,5 +23,6 @@ pub fn build_app_router(client: Arc<CivicApiClient>) -> Router {
         .route("/api/voter-info", get(routes::elections::get_voter_info))
         .route("/api/elections", get(routes::elections::get_elections))
         .route("/api/all-elections", get(routes::elections::list_all_elections))
+        .route("/api/registration", get(routes::elections::get_registration))
         .with_state(client)
 }

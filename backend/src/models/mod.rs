@@ -85,6 +85,59 @@ pub struct ElectionsResponse {
     pub contests: Vec<ContestDetail>,
 }
 
+// --- Registration endpoint types ---
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ElectionOfficial {
+    pub name: Option<String>,
+    pub title: Option<String>,
+    pub email: Option<String>,
+    pub phone: Option<String>,
+    pub fax: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegistrationAddress {
+    pub location_name: Option<String>,
+    pub line1: Option<String>,
+    pub city: Option<String>,
+    pub state: Option<String>,
+    pub zip: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegistrationResponse {
+    pub available: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub admin_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub registration_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub registration_confirmation_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub registration_deadline: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub election_info_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub absentee_voting_info_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub voting_location_finder_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ballot_info_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub election_rules_url: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub voter_services: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hours_of_operation: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub correspondence_address: Option<RegistrationAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub physical_address: Option<RegistrationAddress>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub election_officials: Vec<ElectionOfficial>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

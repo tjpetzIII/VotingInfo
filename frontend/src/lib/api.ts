@@ -104,3 +104,51 @@ export async function fetchElections(address: string): Promise<ElectionsResponse
   }
   return res.json();
 }
+
+export interface ElectionOfficial {
+  name: string | null;
+  title: string | null;
+  email: string | null;
+  phone: string | null;
+  fax: string | null;
+}
+
+export interface RegistrationAddress {
+  location_name: string | null;
+  line1: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+}
+
+export interface RegistrationResponse {
+  available: boolean;
+  admin_name?: string;
+  registration_url?: string;
+  registration_confirmation_url?: string;
+  registration_deadline?: string;
+  election_info_url?: string;
+  absentee_voting_info_url?: string;
+  voting_location_finder_url?: string;
+  ballot_info_url?: string;
+  election_rules_url?: string;
+  voter_services?: string[];
+  hours_of_operation?: string;
+  correspondence_address?: RegistrationAddress;
+  physical_address?: RegistrationAddress;
+  election_officials?: ElectionOfficial[];
+}
+
+export async function fetchRegistration(address: string): Promise<RegistrationResponse> {
+  const res = await fetch(
+    `${API_BASE}/api/registration?address=${encodeURIComponent(address)}`
+  );
+  if (res.status === 404) {
+    throw new Error("No registration info found for this address.");
+  }
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error((json as { error?: string }).error ?? `Error ${res.status}`);
+  }
+  return res.json();
+}
