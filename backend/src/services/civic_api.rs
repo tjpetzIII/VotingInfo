@@ -8,7 +8,8 @@ use serde::Deserialize;
 use crate::errors::AppError;
 use crate::models::{
     AllElectionsResponse, Candidate, CandidateDetail, Channel, Contest, ContestDetail, Election,
-    ElectionItem, ElectionsResponse, PollingLocation, VoterInfoResponse,
+    ElectionItem, ElectionOfficial, ElectionsResponse, PollingLocation, RegistrationAddress,
+    RegistrationResponse, VoterInfoResponse,
 };
 use crate::services::geocoder::GeocoderClient;
 
@@ -93,12 +94,72 @@ struct ApiContest {
 }
 
 #[derive(Deserialize)]
+struct ApiElectionOfficial {
+    name: Option<String>,
+    title: Option<String>,
+    #[serde(rename = "emailAddress")]
+    email_address: Option<String>,
+    #[serde(rename = "officePhoneNumber")]
+    office_phone_number: Option<String>,
+    #[serde(rename = "faxNumber")]
+    fax_number: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ApiSimpleAddress {
+    #[serde(rename = "locationName")]
+    location_name: Option<String>,
+    line1: Option<String>,
+    city: Option<String>,
+    state: Option<String>,
+    zip: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ApiElectionAdministrationBody {
+    name: Option<String>,
+    #[serde(rename = "electionInfoUrl")]
+    election_info_url: Option<String>,
+    #[serde(rename = "electionRegistrationUrl")]
+    election_registration_url: Option<String>,
+    #[serde(rename = "electionRegistrationConfirmationUrl")]
+    election_registration_confirmation_url: Option<String>,
+    #[serde(rename = "absenteeVotingInfoUrl")]
+    absentee_voting_info_url: Option<String>,
+    #[serde(rename = "votingLocationFinderUrl")]
+    voting_location_finder_url: Option<String>,
+    #[serde(rename = "ballotInfoUrl")]
+    ballot_info_url: Option<String>,
+    #[serde(rename = "electionRulesUrl")]
+    election_rules_url: Option<String>,
+    voter_services: Option<String>,
+    #[serde(rename = "hoursOfOperation")]
+    hours_of_operation: Option<String>,
+    #[serde(rename = "registrationDeadline")]
+    registration_deadline: Option<String>,
+    #[serde(rename = "correspondenceAddress")]
+    correspondence_address: Option<ApiSimpleAddress>,
+    #[serde(rename = "physicalAddress")]
+    physical_address: Option<ApiSimpleAddress>,
+    #[serde(rename = "electionOfficials", default)]
+    election_officials: Vec<ApiElectionOfficial>,
+}
+
+#[derive(Deserialize)]
+struct ApiAdministrationRegion {
+    #[serde(rename = "electionAdministrationBody")]
+    election_administration_body: Option<ApiElectionAdministrationBody>,
+}
+
+#[derive(Deserialize)]
 struct ApiVoterInfoResponse {
     election: ApiElection,
     #[serde(rename = "pollingLocations", default)]
     polling_locations: Vec<ApiPollingLocation>,
     #[serde(default)]
     contests: Vec<ApiContest>,
+    #[serde(default)]
+    state: Vec<ApiAdministrationRegion>,
 }
 
 pub struct CivicApiClient {
@@ -108,6 +169,7 @@ pub struct CivicApiClient {
     cache: Cache<String, VoterInfoResponse>,
     elections_cache: Cache<String, ElectionsResponse>,
     all_elections_cache: Cache<String, AllElectionsResponse>,
+    registration_cache: Cache<String, RegistrationResponse>,
     geocoder: GeocoderClient,
 }
 
@@ -147,6 +209,10 @@ impl CivicApiClient {
             .time_to_live(Duration::from_secs(15 * 60))
             .build();
 
+        let registration_cache = Cache::builder()
+            .time_to_live(Duration::from_secs(15 * 60))
+            .build();
+
         Self {
             client: Client::new(),
             api_key,
@@ -154,6 +220,7 @@ impl CivicApiClient {
             cache,
             elections_cache,
             all_elections_cache,
+            registration_cache,
             geocoder,
         }
     }
@@ -187,6 +254,19 @@ impl CivicApiClient {
         let raw = self.fetch_raw(address).await?;
         let result = map_elections(raw);
         self.elections_cache
+            .insert(address.to_string(), result.clone())
+            .await;
+        Ok(result)
+    }
+
+    pub async fn get_registration(&self, address: &str) -> Result<RegistrationResponse, AppError> {
+        if let Some(cached) = self.registration_cache.get(address).await {
+            return Ok(cached);
+        }
+
+        let raw = self.fetch_raw(address).await?;
+        let result = map_registration(raw);
+        self.registration_cache
             .insert(address.to_string(), result.clone())
             .await;
         Ok(result)
@@ -339,6 +419,79 @@ fn map_voter_info(raw: ApiVoterInfoResponse) -> VoterInfoResponse {
                     .collect(),
             })
             .collect(),
+    }
+}
+
+fn map_address(addr: ApiSimpleAddress) -> RegistrationAddress {
+    RegistrationAddress {
+        location_name: addr.location_name,
+        line1: addr.line1,
+        city: addr.city,
+        state: addr.state,
+        zip: addr.zip,
+    }
+}
+
+fn map_registration(raw: ApiVoterInfoResponse) -> RegistrationResponse {
+    let admin_body = raw
+        .state
+        .into_iter()
+        .next()
+        .and_then(|s| s.election_administration_body);
+
+    match admin_body {
+        None => RegistrationResponse {
+            available: false,
+            admin_name: None,
+            registration_url: None,
+            registration_confirmation_url: None,
+            registration_deadline: None,
+            election_info_url: None,
+            absentee_voting_info_url: None,
+            voting_location_finder_url: None,
+            ballot_info_url: None,
+            election_rules_url: None,
+            voter_services: vec![],
+            hours_of_operation: None,
+            correspondence_address: None,
+            physical_address: None,
+            election_officials: vec![],
+        },
+        Some(body) => RegistrationResponse {
+            available: true,
+            admin_name: body.name,
+            registration_url: body.election_registration_url,
+            registration_confirmation_url: body.election_registration_confirmation_url,
+            registration_deadline: body.registration_deadline,
+            election_info_url: body.election_info_url,
+            absentee_voting_info_url: body.absentee_voting_info_url,
+            voting_location_finder_url: body.voting_location_finder_url,
+            ballot_info_url: body.ballot_info_url,
+            election_rules_url: body.election_rules_url,
+            voter_services: body
+                .voter_services
+                .map(|s| {
+                    s.split('|')
+                        .map(|p| p.trim().to_string())
+                        .filter(|p| !p.is_empty())
+                        .collect()
+                })
+                .unwrap_or_default(),
+            hours_of_operation: body.hours_of_operation,
+            correspondence_address: body.correspondence_address.map(map_address),
+            physical_address: body.physical_address.map(map_address),
+            election_officials: body
+                .election_officials
+                .into_iter()
+                .map(|o| ElectionOfficial {
+                    name: o.name,
+                    title: o.title,
+                    email: o.email_address,
+                    phone: o.office_phone_number,
+                    fax: o.fax_number,
+                })
+                .collect(),
+        },
     }
 }
 

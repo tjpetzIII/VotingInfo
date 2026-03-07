@@ -1,28 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import dynamic from "next/dynamic";
+import AddressForm from "@/components/AddressForm";
 
 const PollingMap = dynamic(() => import("@/components/PollingMap"), {
   ssr: false,
   loading: () => <div className="h-80 bg-gray-200 rounded-2xl animate-pulse" />,
 });
 import PollingLocationCard from "@/components/PollingLocationCard";
-
-const schema = z.object({
-  street: z.string().min(1, "Street address is required"),
-  city: z.string().min(1, "City is required"),
-  state: z
-    .string()
-    .length(2, "State must be 2 letters")
-    .regex(/^[a-zA-Z]+$/, "State must be letters only"),
-  zip: z.string().regex(/^\d{5}$/, "ZIP must be 5 digits"),
-});
-
-type FormData = z.infer<typeof schema>;
 
 interface PollingLocation {
   name: string | null;
@@ -46,16 +32,8 @@ type PageState =
 export default function PollingPage() {
   const [pageState, setPageState] = useState<PageState>({ status: "idle" });
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    formState: { errors },
-  } = useForm<FormData>({ resolver: zodResolver(schema) });
-
-  async function onSubmit(data: FormData) {
+  async function handleAddressSubmit(address: string) {
     setPageState({ status: "loading" });
-    const address = `${data.street}, ${data.city}, ${data.state.toUpperCase()} ${data.zip}`;
     const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
     try {
@@ -64,10 +42,7 @@ export default function PollingPage() {
       );
 
       if (res.status === 404) {
-        setPageState({
-          status: "error",
-          message: "No election data found for this address.",
-        });
+        setPageState({ status: "error", message: "No election data found for this address." });
         return;
       }
 
@@ -80,103 +55,27 @@ export default function PollingPage() {
         return;
       }
 
-      const result: VoterInfoResponse = await res.json();
-      setPageState({ status: "success", data: result });
+      setPageState({ status: "success", data: await res.json() });
     } catch {
-      setPageState({
-        status: "error",
-        message: "Could not reach the server. Please try again.",
-      });
+      setPageState({ status: "error", message: "Could not reach the server. Please try again." });
     }
   }
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">
-        Find Your Polling Place
-      </h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-2">Find Your Polling Place</h1>
       <p className="text-gray-500 mb-8 text-sm">
         Enter your full address to find your polling location.
       </p>
 
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="bg-white rounded-2xl shadow-md p-6 mb-8"
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="sm:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Street Address
-            </label>
-            <input
-              {...register("street")}
-              placeholder="e.g. 123 Main St"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {errors.street && (
-              <p className="mt-1 text-xs text-red-600">{errors.street.message}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              City
-            </label>
-            <input
-              {...register("city")}
-              placeholder="e.g. Austin"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {errors.city && (
-              <p className="mt-1 text-xs text-red-600">{errors.city.message}</p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                State
-              </label>
-              <input
-                {...register("state")}
-                placeholder="TX"
-                maxLength={2}
-                onChange={(e) => {
-                  const val = e.target.value.toUpperCase().slice(0, 2);
-                  setValue("state", val, { shouldValidate: true });
-                }}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
-              />
-              {errors.state && (
-                <p className="mt-1 text-xs text-red-600">{errors.state.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                ZIP Code
-              </label>
-              <input
-                {...register("zip")}
-                placeholder="78701"
-                maxLength={5}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              {errors.zip && (
-                <p className="mt-1 text-xs text-red-600">{errors.zip.message}</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          disabled={pageState.status === "loading"}
-          className="mt-6 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors"
-        >
-          {pageState.status === "loading" ? "Searching..." : "Find My Polling Place"}
-        </button>
-      </form>
+      <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
+        <AddressForm
+          onSubmit={handleAddressSubmit}
+          loading={pageState.status === "loading"}
+          submitLabel="Find My Polling Place"
+          loadingLabel="Searching..."
+        />
+      </div>
 
       {pageState.status === "loading" && <LoadingSkeleton />}
 
@@ -192,12 +91,8 @@ export default function PollingPage() {
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
               Election
             </p>
-            <p className="font-semibold text-gray-900">
-              {pageState.data.election.name}
-            </p>
-            <p className="text-sm text-gray-500">
-              {pageState.data.election.election_day}
-            </p>
+            <p className="font-semibold text-gray-900">{pageState.data.election.name}</p>
+            <p className="text-sm text-gray-500">{pageState.data.election.election_day}</p>
           </div>
 
           {pageState.data.polling_locations.length === 0 ? (
