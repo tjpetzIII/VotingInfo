@@ -1,0 +1,20 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Next.js
+frontend/.next/
+frontend/out/
+
+# Rust
+backend/target/
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
