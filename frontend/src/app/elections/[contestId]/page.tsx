@@ -4,10 +4,12 @@ import { Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, useParams } from "next/navigation";
 import Link from "next/link";
+import { useIntl, FormattedMessage } from "react-intl";
 import CandidateCard from "@/components/CandidateCard";
 import { fetchElections } from "@/lib/api";
 
 function ContestContent() {
+  const intl = useIntl();
   const { contestId } = useParams<{ contestId: string }>();
   const searchParams = useSearchParams();
   const address = searchParams.get("address") ?? "";
@@ -24,9 +26,9 @@ function ContestContent() {
     return (
       <div className="max-w-5xl mx-auto px-4 py-12">
         <p className="text-gray-500 text-sm">
-          No address provided.{" "}
+          <FormattedMessage id="contest.noAddress" />{" "}
           <Link href="/elections" className="text-blue-600 hover:underline">
-            Search for contests
+            <FormattedMessage id="contest.searchContests" />
           </Link>
         </p>
       </div>
@@ -52,12 +54,12 @@ function ContestContent() {
     return (
       <div className="max-w-5xl mx-auto px-4 py-12">
         <p className="text-gray-500 text-sm">
-          Contest not found.{" "}
+          <FormattedMessage id="contest.notFound" />{" "}
           <Link
             href={`/elections?address=${encodeURIComponent(address)}`}
             className="text-blue-600 hover:underline"
           >
-            Back to contests
+            <FormattedMessage id="contest.backToContests" />
           </Link>
         </p>
       </div>
@@ -72,10 +74,12 @@ function ContestContent() {
         href={`/elections?address=${encodeURIComponent(address)}`}
         className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 mb-6"
       >
-        ← All contests
+        <FormattedMessage id="contest.allContests" />
       </Link>
 
-      <h1 className="text-3xl font-bold text-gray-900 mb-1">{title || "Contest"}</h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-1">
+        {title || intl.formatMessage({ id: "contest.defaultTitle" })}
+      </h1>
       {data && (
         <p className="text-sm text-gray-500 mb-8">
           {data.election.name} · {data.election.election_day}
@@ -83,7 +87,9 @@ function ContestContent() {
       )}
 
       {contest.candidates.length === 0 ? (
-        <p className="text-gray-500 text-sm">No candidate information available.</p>
+        <p className="text-gray-500 text-sm">
+          <FormattedMessage id="contest.noCandidates" />
+        </p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {contest.candidates.map((candidate, i) => (

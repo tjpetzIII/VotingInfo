@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useIntl, FormattedMessage } from "react-intl";
 import { fetchVoterInfo, VoterInfoResponse } from "@/lib/api";
 
 export default function VoterInfoPage() {
+  const intl = useIntl();
   const [street, setStreet] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
@@ -18,7 +20,7 @@ export default function VoterInfoPage() {
     setResult(null);
 
     if (!street || !city || !state || !zip) {
-      setError("Please fill in all fields.");
+      setError(intl.formatMessage({ id: "voterInfo.fillAllFields" }));
       return;
     }
 
@@ -38,10 +40,10 @@ export default function VoterInfoPage() {
     <div className="flex flex-col items-center min-h-full py-16 px-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          Find Your Voter Info
+          <FormattedMessage id="voterInfo.title" />
         </h1>
         <p className="text-gray-500 mb-6 text-sm">
-          Enter your address to find polling locations, sample ballots, and more.
+          <FormattedMessage id="voterInfo.subtitle" />
         </p>
 
         {error && (
@@ -56,14 +58,14 @@ export default function VoterInfoPage() {
               htmlFor="street"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Street Address
+              <FormattedMessage id="voterInfo.streetLabel" />
             </label>
             <input
               id="street"
               type="text"
               value={street}
               onChange={(e) => setStreet(e.target.value)}
-              placeholder="e.g. 123 Main St"
+              placeholder={intl.formatMessage({ id: "voterInfo.streetPlaceholder" })}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -73,14 +75,14 @@ export default function VoterInfoPage() {
               htmlFor="city"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              City
+              <FormattedMessage id="voterInfo.cityLabel" />
             </label>
             <input
               id="city"
               type="text"
               value={city}
               onChange={(e) => setCity(e.target.value)}
-              placeholder="e.g. Austin"
+              placeholder={intl.formatMessage({ id: "voterInfo.cityPlaceholder" })}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -90,14 +92,14 @@ export default function VoterInfoPage() {
               htmlFor="state"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              State
+              <FormattedMessage id="voterInfo.stateLabel" />
             </label>
             <input
               id="state"
               type="text"
               value={state}
               onChange={(e) => setState(e.target.value.toUpperCase().slice(0, 2))}
-              placeholder="e.g. TX"
+              placeholder={intl.formatMessage({ id: "voterInfo.statePlaceholder" })}
               maxLength={2}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
             />
@@ -108,14 +110,14 @@ export default function VoterInfoPage() {
               htmlFor="zip"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              ZIP Code
+              <FormattedMessage id="voterInfo.zipLabel" />
             </label>
             <input
               id="zip"
               type="text"
               value={zip}
               onChange={(e) => setZip(e.target.value.replace(/\D/g, "").slice(0, 5))}
-              placeholder="e.g. 78701"
+              placeholder={intl.formatMessage({ id: "voterInfo.zipPlaceholder" })}
               maxLength={5}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
@@ -126,7 +128,9 @@ export default function VoterInfoPage() {
             disabled={loading}
             className="mt-2 w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-2.5 rounded-lg transition-colors"
           >
-            {loading ? "Looking up…" : "Find My Polling Info"}
+            {loading
+              ? intl.formatMessage({ id: "voterInfo.submitting" })
+              : intl.formatMessage({ id: "voterInfo.submit" })}
           </button>
         </form>
       </div>
@@ -135,12 +139,16 @@ export default function VoterInfoPage() {
         <div className="w-full max-w-md mt-6 flex flex-col gap-4">
           <div className="bg-white rounded-2xl shadow-md p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{result.election.name}</h2>
-            <p className="text-sm text-gray-500">Election day: {result.election.election_day}</p>
+            <p className="text-sm text-gray-500">
+              {intl.formatMessage({ id: "voterInfo.electionDay" }, { day: result.election.election_day })}
+            </p>
           </div>
 
           {result.polling_locations.length > 0 && (
             <div className="bg-white rounded-2xl shadow-md p-6">
-              <h2 className="text-base font-semibold text-gray-900 mb-3">Polling Locations</h2>
+              <h2 className="text-base font-semibold text-gray-900 mb-3">
+                <FormattedMessage id="voterInfo.pollingLocations" />
+              </h2>
               <ul className="flex flex-col gap-3">
                 {result.polling_locations.map((loc, i) => (
                   <li key={i} className="text-sm text-gray-700">
@@ -157,12 +165,14 @@ export default function VoterInfoPage() {
 
           {result.contests.length > 0 && (
             <div className="bg-white rounded-2xl shadow-md p-6">
-              <h2 className="text-base font-semibold text-gray-900 mb-3">Contests</h2>
+              <h2 className="text-base font-semibold text-gray-900 mb-3">
+                <FormattedMessage id="voterInfo.contests" />
+              </h2>
               <ul className="flex flex-col gap-4">
                 {result.contests.map((contest, i) => (
                   <li key={i}>
                     <p className="text-sm font-medium text-gray-800">
-                      {contest.office ?? "Unknown Office"}
+                      {contest.office ?? intl.formatMessage({ id: "voterInfo.unknownOffice" })}
                       {contest.district && (
                         <span className="text-gray-400 font-normal"> — {contest.district}</span>
                       )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useIntl, FormattedMessage } from "react-intl";
 import type { CandidateDetail } from "@/lib/api";
 
 const CHANNEL_CONFIG: Record<
@@ -40,6 +41,7 @@ function partyBadgeClass(party: string | null): string {
 }
 
 export default function CandidateCard({ candidate }: { candidate: CandidateDetail }) {
+  const intl = useIntl();
   const [imgError, setImgError] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
 
@@ -125,13 +127,15 @@ export default function CandidateCard({ candidate }: { candidate: CandidateDetai
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 font-medium"
           >
             <span className="text-xs">{contactOpen ? "▲" : "▼"}</span>
-            Contact info
+            <FormattedMessage id="candidate.contactInfo" />
           </button>
           {contactOpen && (
             <div className="mt-2 space-y-1 text-sm">
               {candidate.phone && (
                 <p>
-                  <span className="text-gray-500">Phone: </span>
+                  <span className="text-gray-500">
+                    {intl.formatMessage({ id: "candidate.phone" })}{" "}
+                  </span>
                   <a href={`tel:${candidate.phone}`} className="text-gray-800 hover:underline">
                     {candidate.phone}
                   </a>
@@ -139,7 +143,9 @@ export default function CandidateCard({ candidate }: { candidate: CandidateDetai
               )}
               {candidate.email && (
                 <p>
-                  <span className="text-gray-500">Email: </span>
+                  <span className="text-gray-500">
+                    {intl.formatMessage({ id: "candidate.email" })}{" "}
+                  </span>
                   <a
                     href={`mailto:${candidate.email}`}
                     className="text-blue-600 hover:underline"

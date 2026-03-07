@@ -4,9 +4,11 @@ import { Suspense, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useIntl, FormattedMessage } from "react-intl";
 import { fetchElections, type ContestDetail } from "@/lib/api";
 
 function ElectionsContent() {
+  const intl = useIntl();
   const searchParams = useSearchParams();
   const initialAddress = searchParams.get("address") ?? "";
 
@@ -43,9 +45,11 @@ function ElectionsContent() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">Contests & Candidates</h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <FormattedMessage id="elections.title" />
+      </h1>
       <p className="text-gray-500 mb-8 text-sm">
-        Enter your address to see what&apos;s on your ballot and who&apos;s running.
+        <FormattedMessage id="elections.subtitle" />
       </p>
 
       <form onSubmit={handleSubmit} className="flex gap-3 mb-8">
@@ -53,14 +57,14 @@ function ElectionsContent() {
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          placeholder="e.g. 123 Main St, Austin, TX 78701"
+          placeholder={intl.formatMessage({ id: "elections.placeholder" })}
           className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <button
           type="submit"
           className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors"
         >
-          Search
+          <FormattedMessage id="elections.search" />
         </button>
       </form>
 
@@ -77,7 +81,7 @@ function ElectionsContent() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-                Election
+                <FormattedMessage id="elections.electionLabel" />
               </p>
               <p className="font-semibold text-gray-900">{data.election.name}</p>
               <p className="text-sm text-gray-500">{data.election.election_day}</p>
@@ -86,12 +90,16 @@ function ElectionsContent() {
               onClick={handleShare}
               className="flex-shrink-0 flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-400 px-4 py-2 rounded-lg transition-colors"
             >
-              {copied ? "Copied!" : "Share this election"}
+              {copied
+                ? intl.formatMessage({ id: "elections.copied" })
+                : intl.formatMessage({ id: "elections.share" })}
             </button>
           </div>
 
           {data.contests.length === 0 ? (
-            <p className="text-gray-500 text-sm">No contests found for this address.</p>
+            <p className="text-gray-500 text-sm">
+              <FormattedMessage id="elections.noContests" />
+            </p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {data.contests.map((contest) => (
@@ -106,17 +114,25 @@ function ElectionsContent() {
 }
 
 function ContestCard({ contest, address }: { contest: ContestDetail; address: string }) {
+  const intl = useIntl();
   const title = [contest.office, contest.district].filter(Boolean).join(" — ");
   return (
     <Link
       href={`/elections/${contest.id}?address=${encodeURIComponent(address)}`}
       className="bg-white rounded-2xl shadow-md p-5 hover:shadow-lg transition-shadow flex flex-col gap-2"
     >
-      <h2 className="font-semibold text-gray-900 leading-snug">{title || "Unnamed Contest"}</h2>
+      <h2 className="font-semibold text-gray-900 leading-snug">
+        {title || intl.formatMessage({ id: "elections.unnamedContest" })}
+      </h2>
       <p className="text-sm text-gray-500">
-        {contest.candidates.length} candidate{contest.candidates.length !== 1 ? "s" : ""}
+        {intl.formatMessage(
+          { id: "elections.candidateCount" },
+          { count: contest.candidates.length }
+        )}
       </p>
-      <span className="mt-auto text-blue-600 text-sm font-medium">View candidates →</span>
+      <span className="mt-auto text-blue-600 text-sm font-medium">
+        <FormattedMessage id="elections.viewCandidates" />
+      </span>
     </Link>
   );
 }

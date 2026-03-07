@@ -1,9 +1,27 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { IntlProvider } from "react-intl";
+import { LocaleProvider, useLocale } from "@/contexts/LocaleContext";
+import enMessages from "@/messages/en";
+import esMessages from "@/messages/es";
 
-export default function Providers({ children }: { children: React.ReactNode }) {
+// Cast required for React 19 compatibility (react-intl uses class component types)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const SafeIntlProvider = IntlProvider as any;
+
+function IntlWrapper({ children }: { children: ReactNode }) {
+  const { locale } = useLocale();
+  const messages = locale === "es" ? esMessages : enMessages;
+  return (
+    <SafeIntlProvider locale={locale} messages={messages}>
+      {children}
+    </SafeIntlProvider>
+  );
+}
+
+export default function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -18,5 +36,14 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         },
       })
   );
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+
+  return (
+    <LocaleProvider>
+      <IntlWrapper>
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      </IntlWrapper>
+    </LocaleProvider>
+  );
 }

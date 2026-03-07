@@ -5,14 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ### Frontend (Next.js)
+
 ```bash
-npm run dev          # dev server at localhost:3000 (runs from repo root via workspaces)
-npm run build        # production build
+cd frontend && npm run dev                       # dev server at localhost:3000 (runs from repo root via workspaces)
+cd frontend && npm run build      # production build (MUST run from frontend/, not repo root)
 cd frontend && npm run lint
 cd frontend && npx tsc --noEmit   # type check
 ```
 
 ### Backend (Rust/Axum)
+
 ```bash
 cd backend && cargo run        # dev server at localhost:8080
 cd backend && cargo build      # compile check
@@ -26,6 +28,7 @@ cd backend && cargo clippy     # lint
 the Google Civic API locally. Unit tests have no external dependencies.
 
 ### Docker
+
 ```bash
 docker compose up --build      # run both services
 curl localhost:8080/health     # verify backend
@@ -33,10 +36,12 @@ curl localhost:8080/health     # verify backend
 
 ## Architecture
 
-This is an npm workspaces monorepo with a Next.js frontend and a Rust/Axum backend as two independent services.
+This repo contains a Next.js frontend and a Rust/Axum backend as two fully independent services with no shared package infrastructure.
 
 ### Frontend (`frontend/`)
+
 Next.js 16 App Router with React 19, TypeScript, and Tailwind CSS 3. Uses `next.config.mjs` (`.ts` config is not supported). Built with `output: "standalone"` for Docker. Key files:
+
 - `src/app/layout.tsx` — root shell with VoteReady header/footer and nav links, wraps in `<Providers>` (QueryClientProvider)
 - `src/app/page.tsx` — home page; fetches and lists all available elections via react-query (`queryKey: ["all-elections"]`)
 - `src/app/voter-info/page.tsx` — address form (street, city, state, zip) that calls `/api/voter-info` and displays polling locations and contests
@@ -50,6 +55,7 @@ Next.js 16 App Router with React 19, TypeScript, and Tailwind CSS 3. Uses `next.
 Address format sent to the backend: `"${street}, ${city}, ${state} ${zip}"` — Google's Civic API requires a full street address; city/state/zip alone returns a 400 parseError.
 
 ### Backend (`backend/`)
+
 Rust 1.92 + Axum 0.7, listening on `0.0.0.0:8080`. Module layout:
 
 ```
@@ -74,20 +80,23 @@ src/
 **State:** `Arc<CivicApiClient>` is built at startup in `main()` — panics if `GOOGLE_CIVIC_API_KEY` is not set.
 
 ### Docker
+
 - Backend Dockerfile: cargo-chef multi-stage build (`lukemathwalker/cargo-chef`) → `gcr.io/distroless/cc-debian12` final image. Includes `healthcheck` binary alongside `backend` binary.
 - Frontend Dockerfile: standalone npm install (bypasses workspace lockfile) → Next.js standalone output.
 - `docker-compose.yml`: backend healthcheck uses `/app/healthcheck` binary; frontend healthcheck uses `wget`; frontend `depends_on` backend with `condition: service_healthy`.
 - CI: `.github/workflows/ci.yml` runs `cargo test`, `cargo clippy`, and `next build` on PRs.
 
 ### Environment
+
 - `backend/.env` — `GOOGLE_CIVIC_API_KEY=your_api_key_here` (required; loaded via `dotenvy`)
 - CORS allows `http://localhost:3000` only (hardcoded in `main.rs`)
 - In Docker Compose the frontend receives `NEXT_PUBLIC_API_URL=http://backend:8080`
 
 ### API Endpoints
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | `{"status":"ok"}` |
-| GET | `/api/voter-info?address=` | Returns `VoterInfoResponse` JSON |
-| GET | `/api/elections?address=` | Returns `ElectionsResponse` JSON |
-| GET | `/api/all-elections` | Returns `AllElectionsResponse` JSON (no address needed) |
+
+| Method | Path                       | Description                                             |
+| ------ | -------------------------- | ------------------------------------------------------- |
+| GET    | `/health`                  | `{"status":"ok"}`                                       |
+| GET    | `/api/voter-info?address=` | Returns `VoterInfoResponse` JSON                        |
+| GET    | `/api/elections?address=`  | Returns `ElectionsResponse` JSON                        |
+| GET    | `/api/all-elections`       | Returns `AllElectionsResponse` JSON (no address needed) |

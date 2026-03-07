@@ -1,9 +1,11 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useIntl, FormattedMessage } from "react-intl";
 import { fetchAllElections, ElectionItem } from "@/lib/api";
 
 export default function Home() {
+  const intl = useIntl();
   const { data, isLoading, error } = useQuery({
     queryKey: ["all-elections"],
     queryFn: fetchAllElections,
@@ -11,9 +13,11 @@ export default function Home() {
 
   return (
     <div className="max-w-3xl mx-auto py-12 px-4">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">All Elections</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-1">
+        <FormattedMessage id="home.title" />
+      </h1>
       <p className="text-sm text-gray-500 mb-6">
-        Available elections from the Google Civic Information API.
+        <FormattedMessage id="home.subtitle" />
       </p>
 
       {isLoading && (
@@ -24,7 +28,9 @@ export default function Home() {
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-          {error instanceof Error ? error.message : "Failed to load elections."}
+          {error instanceof Error
+            ? error.message
+            : intl.formatMessage({ id: "home.loadError" })}
         </div>
       )}
 
