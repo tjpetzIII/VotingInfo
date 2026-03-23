@@ -92,6 +92,13 @@ const messages: Record<MessageKey, string> = {
   "registration.officials": "Funcionarios Electorales",
   "registration.noData":
     "La información de registro no está disponible para tu ubicación a través de este servicio. Visita el sitio web oficial de elecciones de tu estado para registrarte.",
+  "registration.noElectionData":
+    "No se encontraron datos de elección activa para tu dirección — se muestra información de registro a nivel estatal.",
+  "registration.stateInfo": "Información de Registro Estatal",
+  "registration.onlineYes": "Registro en línea disponible",
+  "registration.onlineNo": "Registro en línea no disponible",
+  "registration.sameDayYes": "Registro el día de las elecciones disponible",
+  "registration.sameDayNo": "Registro el día de las elecciones no disponible",
   "registration.electionInfo": "Información Electoral",
   "registration.absenteeInfo": "Voto en Ausencia / Por Correo",
   "registration.findPollingPlace": "Encontrar Centro de Votación",

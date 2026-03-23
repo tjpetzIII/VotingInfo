@@ -12,6 +12,7 @@ use crate::models::{
     RegistrationResponse, VoterInfoResponse,
 };
 use crate::services::geocoder::GeocoderClient;
+use crate::services::state_registration::StateRegistrationService;
 
 const CIVIC_API_BASE: &str = "https://www.googleapis.com/civicinfo/v2";
 
@@ -171,6 +172,7 @@ pub struct CivicApiClient {
     all_elections_cache: Cache<String, AllElectionsResponse>,
     registration_cache: Cache<String, RegistrationResponse>,
     geocoder: GeocoderClient,
+    state_registration: StateRegistrationService,
 }
 
 impl CivicApiClient {
@@ -222,6 +224,7 @@ impl CivicApiClient {
             all_elections_cache,
             registration_cache,
             geocoder,
+            state_registration: StateRegistrationService::load(),
         }
     }
 
@@ -264,8 +267,17 @@ impl CivicApiClient {
             return Ok(cached);
         }
 
-        let raw = self.fetch_raw(address).await?;
-        let result = map_registration(raw);
+        let result = match self.fetch_raw(address).await {
+            Ok(raw) => map_registration(raw, &self.state_registration, address),
+            // No election data for this address — use static fallback so the
+            // caller can still show state-level registration info.
+            Err(AppError::NotFound) => {
+                state_fallback_registration(&self.state_registration, address)
+            }
+            // Bad address format — propagate the error so the caller can fix input.
+            Err(e) => return Err(e),
+        };
+
         self.registration_cache
             .insert(address.to_string(), result.clone())
             .await;
@@ -432,16 +444,51 @@ fn map_address(addr: ApiSimpleAddress) -> RegistrationAddress {
     }
 }
 
-fn map_registration(raw: ApiVoterInfoResponse) -> RegistrationResponse {
-    let admin_body = raw
-        .state
-        .into_iter()
-        .next()
-        .and_then(|s| s.election_administration_body);
+/// Extracts the two-letter state abbreviation from an address string of the form
+/// `"<street>, <city>, <STATE> <zip>"`.
+fn extract_state_from_address(address: &str) -> Option<String> {
+    let tokens: Vec<&str> = address.split_whitespace().collect();
+    if tokens.len() >= 2 {
+        let candidate = tokens[tokens.len() - 2];
+        if candidate.len() == 2 && candidate.chars().all(|c| c.is_ascii_alphabetic()) {
+            return Some(candidate.to_uppercase());
+        }
+    }
+    None
+}
 
-    match admin_body {
+/// Builds a `RegistrationResponse` from static fallback data when the Civic API
+/// has no election data for the given address.
+fn state_fallback_registration(
+    svc: &StateRegistrationService,
+    address: &str,
+) -> RegistrationResponse {
+    let state_info = extract_state_from_address(address).and_then(|s| svc.lookup(&s));
+
+    match state_info {
+        Some(info) => RegistrationResponse {
+            available: false,
+            same_day_registration: Some(info.same_day_registration),
+            online_registration: Some(info.online_registration),
+            admin_name: None,
+            registration_url: Some(info.registration_url.clone()),
+            registration_confirmation_url: None,
+            registration_deadline: None,
+            election_info_url: None,
+            absentee_voting_info_url: None,
+            voting_location_finder_url: None,
+            ballot_info_url: None,
+            election_rules_url: None,
+            voter_services: vec![],
+            hours_of_operation: None,
+            correspondence_address: None,
+            physical_address: None,
+            election_officials: vec![],
+        },
         None => RegistrationResponse {
             available: false,
+            same_day_registration: None,
+            online_registration: None,
             admin_name: None,
             registration_url: None,
             registration_confirmation_url: None,
@@ -457,10 +504,49 @@ fn map_registration(raw: ApiVoterInfoResponse) -> RegistrationResponse {
             physical_address: None,
             election_officials: vec![],
         },
+    }
+}
+
+fn map_registration(
+    raw: ApiVoterInfoResponse,
+    svc: &StateRegistrationService,
+    address: &str,
+) -> RegistrationResponse {
+    let state_info = extract_state_from_address(address).and_then(|s| svc.lookup(&s));
+    let admin_body = raw
+        .state
+        .into_iter()
+        .next()
+        .and_then(|s| s.election_administration_body);
+
+    match admin_body {
+        None => RegistrationResponse {
+            available: false,
+            same_day_registration: state_info.map(|i| i.same_day_registration),
+            online_registration: state_info.map(|i| i.online_registration),
+            admin_name: None,
+            registration_url: state_info.map(|i| i.registration_url.clone()),
+            registration_confirmation_url: None,
+            registration_deadline: None,
+            election_info_url: None,
+            absentee_voting_info_url: None,
+            voting_location_finder_url: None,
+            ballot_info_url: None,
+            election_rules_url: None,
+            voter_services: vec![],
+            hours_of_operation: None,
+            correspondence_address: None,
+            physical_address: None,
+            election_officials: vec![],
+        },
         Some(body) => RegistrationResponse {
             available: true,
+            same_day_registration: state_info.map(|i| i.same_day_registration),
+            online_registration: state_info.map(|i| i.online_registration),
             admin_name: body.name,
-            registration_url: body.election_registration_url,
+            registration_url: body
+                .election_registration_url
+                .or_else(|| state_info.map(|i| i.registration_url.clone())),
             registration_confirmation_url: body.election_registration_confirmation_url,
             registration_deadline: body.registration_deadline,
             election_info_url: body.election_info_url,

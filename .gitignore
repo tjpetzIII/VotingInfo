@@ -22,3 +22,6 @@ Thumbs.db
 
 # Claude
 .claude
+
+# MCP stuff
+.playwright-mcp
