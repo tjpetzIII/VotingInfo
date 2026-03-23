@@ -1,0 +1,257 @@
+{
+  "AL": {
+    "registration_url": "https://www.alabamavotes.gov/RegisterToVote.aspx",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "AK": {
+    "registration_url": "https://voterregistration.alaska.gov",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "AZ": {
+    "registration_url": "https://servicearizona.com/voterRegistration",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "AR": {
+    "registration_url": "https://www.sos.arkansas.gov/elections/voter-information/register-to-vote",
+    "same_day_registration": false,
+    "online_registration": false
+  },
+  "CA": {
+    "registration_url": "https://registertovote.ca.gov",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "CO": {
+    "registration_url": "https://www.sos.state.co.us/voter/pages/pub/olvr/verifyNewVoter.xhtml",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "CT": {
+    "registration_url": "https://voterregistration.ct.gov/OLVR/welcome.do",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "DE": {
+    "registration_url": "https://ivote.de.gov/VoterView/registrant/newregistrant",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "FL": {
+    "registration_url": "https://registertovoteflorida.gov/home",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "GA": {
+    "registration_url": "https://registertovote.sos.ga.gov/GAOLVR/welcome.do",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "HI": {
+    "registration_url": "https://olvr.hawaii.gov",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "ID": {
+    "registration_url": "https://sos.idaho.gov/elections-division/voter-registration/",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "IL": {
+    "registration_url": "https://ova.elections.il.gov",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "IN": {
+    "registration_url": "https://indianavoters.in.gov",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "IA": {
+    "registration_url": "https://sos.iowa.gov/elections/voterinformation/voterregistration.html",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "KS": {
+    "registration_url": "https://www.kdor.ks.gov/Apps/VoterReg/Default.aspx",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "KY": {
+    "registration_url": "https://vrsws.sos.ky.gov/ovrweb",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "LA": {
+    "registration_url": "https://voterportal.sos.la.gov",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "ME": {
+    "registration_url": "https://www.maine.gov/sos/cec/elec/voter-info/votereg.html",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "MD": {
+    "registration_url": "https://elections.maryland.gov/voter_registration/index.html",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "MA": {
+    "registration_url": "https://www.sec.state.ma.us/OVR",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "MI": {
+    "registration_url": "https://mvic.sos.state.mi.us/RegisterVoter",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "MN": {
+    "registration_url": "https://mnvotes.sos.state.mn.us/VoterStatusCheck.aspx",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "MS": {
+    "registration_url": "https://www.sos.ms.gov/elections-voting/voter-registration",
+    "same_day_registration": false,
+    "online_registration": false
+  },
+  "MO": {
+    "registration_url": "https://www.sos.mo.gov/elections/goVoteMissouri/register",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "MT": {
+    "registration_url": "https://app.mt.gov/voterinfo",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "NE": {
+    "registration_url": "https://www.nebraska.gov/apps-sos-voter-registration",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "NV": {
+    "registration_url": "https://registertovotenv.gov",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "NH": {
+    "registration_url": "https://www.sos.nh.gov/elections/voters/register-vote",
+    "same_day_registration": true,
+    "online_registration": false
+  },
+  "NJ": {
+    "registration_url": "https://voter.svrs.nj.gov/register",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "NM": {
+    "registration_url": "https://www.sos.nm.gov/voting-and-elections/voter-information-portal/register-to-vote",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "NY": {
+    "registration_url": "https://www.elections.ny.gov/VoterRegist.html",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "NC": {
+    "registration_url": "https://www.ncsbe.gov/registering/how-register",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "ND": {
+    "registration_url": "https://vip.sos.nd.gov/PortalList.aspx",
+    "same_day_registration": true,
+    "online_registration": false
+  },
+  "OH": {
+    "registration_url": "https://www.ohiosos.gov/elections/voters/register",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "OK": {
+    "registration_url": "https://www.ok.gov/elections/Voter_Registration/Register_to_Vote_Online",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "OR": {
+    "registration_url": "https://sos.oregon.gov/voting/Pages/register.aspx",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "PA": {
+    "registration_url": "https://www.vote.pa.gov/Register-to-Vote/Pages/Voter-Registration-Application.aspx",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "RI": {
+    "registration_url": "https://vote.sos.ri.gov",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "SC": {
+    "registration_url": "https://www.scvotes.gov/how-to-register-to-vote",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "SD": {
+    "registration_url": "https://sdsos.gov/elections-voting/voting/register-to-vote/default.aspx",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "TN": {
+    "registration_url": "https://ovr.govote.tn.gov",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "TX": {
+    "registration_url": "https://www.votetexas.gov/register-to-vote/index.html",
+    "same_day_registration": false,
+    "online_registration": false
+  },
+  "UT": {
+    "registration_url": "https://vote.utah.gov/vote/menu/register",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "VT": {
+    "registration_url": "https://olvr.vermont.gov",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "VA": {
+    "registration_url": "https://www.elections.virginia.gov/registration/how-to-register",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "WA": {
+    "registration_url": "https://voter.votewa.gov/whyregister.aspx",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "WV": {
+    "registration_url": "https://ovr.sos.wv.gov/Register/Landing",
+    "same_day_registration": false,
+    "online_registration": true
+  },
+  "WI": {
+    "registration_url": "https://myvote.wi.gov/en-us/RegisterToVote",
+    "same_day_registration": true,
+    "online_registration": true
+  },
+  "WY": {
+    "registration_url": "https://sos.wyo.gov/elections/voters.aspx",
+    "same_day_registration": true,
+    "online_registration": false
+  },
+  "DC": {
+    "registration_url": "https://www.dcboe.org/Voters/Register-To-Vote",
+    "same_day_registration": true,
+    "online_registration": true
+  }
+}

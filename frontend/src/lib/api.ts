@@ -123,6 +123,8 @@ export interface RegistrationAddress {
 
 export interface RegistrationResponse {
   available: boolean;
+  same_day_registration?: boolean;
+  online_registration?: boolean;
   admin_name?: string;
   registration_url?: string;
   registration_confirmation_url?: string;

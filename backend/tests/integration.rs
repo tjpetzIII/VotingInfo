@@ -145,6 +145,29 @@ fn voter_info_without_registration() -> Value {
     })
 }
 
+/// Admin body present for IL but `electionRegistrationUrl` is intentionally absent.
+/// Used to verify that the static fallback URL is used when the Civic API omits it.
+fn voter_info_with_registration_no_reg_url() -> Value {
+    json!({
+        "election": {
+            "id": "9001",
+            "name": "General Election",
+            "electionDay": "2025-11-04"
+        },
+        "pollingLocations": [],
+        "contests": [],
+        "state": [
+            {
+                "electionAdministrationBody": {
+                    "name": "Illinois State Board of Elections",
+                    "electionInfoUrl": "https://www.elections.il.gov/",
+                    "hoursOfOperation": "Monday-Friday 8am-5pm CT"
+                }
+            }
+        ]
+    })
+}
+
 fn parse_error_response() -> Value {
     json!({
         "error": {
@@ -498,6 +521,160 @@ async fn registration_parse_error_returns_422() {
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     let json = body_json(response.into_body()).await;
     assert_eq!(json["code"], "VALIDATION_ERROR");
+}
+
+// VOT-13 fallback tests
+
+#[tokio::test]
+async fn registration_election_unknown_uses_state_fallback() {
+    // Civic API has no election data for this address, but the state (IL) is
+    // in the static fallback JSON — response should be 200 with fallback data.
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(400).set_body_json(election_unknown_response()))
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/registration?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    assert_eq!(json["available"], false);
+    assert_eq!(json["registration_url"], "https://ova.elections.il.gov");
+    assert_eq!(json["same_day_registration"], true);
+    assert_eq!(json["online_registration"], true);
+    // Full Civic API fields must not appear in a fallback response
+    assert!(json.get("admin_name").is_none() || json["admin_name"].is_null());
+    assert!(json.get("election_officials").is_none()
+        || json["election_officials"].as_array().map_or(true, |a| a.is_empty()));
+}
+
+#[tokio::test]
+async fn registration_election_unknown_unknown_state_returns_unavailable() {
+    // "XX" is not a real state abbreviation — no fallback entry exists.
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(400).set_body_json(election_unknown_response()))
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/registration?address=123+Main+St,+Nowhere,+XX+00000"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    assert_eq!(json["available"], false);
+    assert!(json.get("registration_url").is_none() || json["registration_url"].is_null());
+    assert!(json.get("same_day_registration").is_none() || json["same_day_registration"].is_null());
+    assert!(json.get("online_registration").is_none() || json["online_registration"].is_null());
+}
+
+#[tokio::test]
+async fn registration_civic_data_includes_sdr_and_online_flags() {
+    // When the Civic API returns a full admin body, same_day_registration and
+    // online_registration should be enriched from the static fallback data.
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(voter_info_with_registration()))
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/registration?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    assert_eq!(json["available"], true);
+    assert_eq!(json["same_day_registration"], true);
+    assert_eq!(json["online_registration"], true);
+}
+
+#[tokio::test]
+async fn registration_civic_url_absent_falls_back_to_static_url() {
+    // Admin body is present but has no electionRegistrationUrl — the static
+    // fallback URL for IL should appear in the response instead.
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(voter_info_with_registration_no_reg_url()),
+        )
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/registration?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    assert_eq!(json["available"], true);
+    assert_eq!(json["registration_url"], "https://ova.elections.il.gov");
+    assert_eq!(json["same_day_registration"], true);
+    assert_eq!(json["online_registration"], true);
+}
+
+#[tokio::test]
+async fn registration_no_state_body_unknown_state_omits_fallback_fields() {
+    // Civic API returns 200 with an empty state array and address uses "XX".
+    // No fallback entry exists, so SDR/online fields must be absent.
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(voter_info_without_registration()),
+        )
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/registration?address=123+Main+St,+Nowhere,+XX+00000"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    assert_eq!(json["available"], false);
+    assert!(json.get("registration_url").is_none() || json["registration_url"].is_null());
+    assert!(json.get("same_day_registration").is_none() || json["same_day_registration"].is_null());
+    assert!(json.get("online_registration").is_none() || json["online_registration"].is_null());
+}
+
+#[tokio::test]
+async fn registration_no_state_body_known_state_includes_fallback_flags() {
+    // Civic API returns 200 with an empty state array but the address state (IL)
+    // is in the static fallback — SDR/online flags and URL should still appear.
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(voter_info_without_registration()),
+        )
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/registration?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    assert_eq!(json["available"], false);
+    assert_eq!(json["registration_url"], "https://ova.elections.il.gov");
+    assert_eq!(json["same_day_registration"], true);
+    assert_eq!(json["online_registration"], true);
 }
 
 // ---------------------------------------------------------------------------

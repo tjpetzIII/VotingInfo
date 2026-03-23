@@ -121,6 +121,42 @@ function AddressBlock({ addr, labelId }: { addr: RegistrationAddress; labelId: s
   );
 }
 
+function FlagRow({ value, yesId, noId }: { value: boolean; yesId: string; noId: string }) {
+  return (
+    <div className="flex items-center gap-2 text-sm text-gray-700">
+      <span className={`inline-block w-2 h-2 rounded-full ${value ? "bg-green-500" : "bg-gray-300"}`} />
+      <FormattedMessage id={value ? yesId : noId} />
+    </div>
+  );
+}
+
+function RegistrationFlags({ result }: { result: RegistrationResponse }) {
+  if (result.online_registration === undefined && result.same_day_registration === undefined) {
+    return null;
+  }
+  return (
+    <div>
+      <SectionLabel id="registration.stateInfo" />
+      <div className="flex flex-col gap-1.5 mt-1">
+        {result.online_registration !== undefined && (
+          <FlagRow
+            value={result.online_registration}
+            yesId="registration.onlineYes"
+            noId="registration.onlineNo"
+          />
+        )}
+        {result.same_day_registration !== undefined && (
+          <FlagRow
+            value={result.same_day_registration}
+            yesId="registration.sameDayYes"
+            noId="registration.sameDayNo"
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
@@ -186,9 +222,28 @@ export default function RegistrationPage() {
             <StatusBadge available={result.available} hasUrl={!!result.registration_url} />
 
             {!result.available ? (
-              <p className="text-sm text-gray-600">
-                <FormattedMessage id="registration.noData" />
-              </p>
+              <>
+                {result.registration_url ? (
+                  <>
+                    <p className="text-sm text-gray-600">
+                      <FormattedMessage id="registration.noElectionData" />
+                    </p>
+                    <a
+                      href={result.registration_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full text-center bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-lg transition-colors"
+                    >
+                      <FormattedMessage id="registration.registerNow" />
+                    </a>
+                    <RegistrationFlags result={result} />
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-600">
+                    <FormattedMessage id="registration.noData" />
+                  </p>
+                )}
+              </>
             ) : (
               <>
                 {/* Deadline */}
@@ -226,6 +281,8 @@ export default function RegistrationPage() {
                     )}
                   </div>
                 )}
+
+                <RegistrationFlags result={result} />
 
                 {/* Voter services */}
                 {result.voter_services && result.voter_services.length > 0 && (

@@ -108,6 +108,14 @@ pub struct RegistrationAddress {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegistrationResponse {
     pub available: bool,
+    /// Whether same-day / Election Day registration is allowed in this state.
+    /// Populated from static fallback data when Civic API data is unavailable.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub same_day_registration: Option<bool>,
+    /// Whether online voter registration is available in this state.
+    /// Populated from static fallback data when Civic API data is unavailable.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub online_registration: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub admin_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

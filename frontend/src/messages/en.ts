@@ -90,6 +90,13 @@ const messages = {
   "registration.officials": "Election Officials",
   "registration.noData":
     "Registration information is not available for your location through this service. Visit your state's official election website to register.",
+  "registration.noElectionData":
+    "No active election data found for your address — showing state-level registration info below.",
+  "registration.stateInfo": "State Registration Info",
+  "registration.onlineYes": "Online registration available",
+  "registration.onlineNo": "Online registration not available",
+  "registration.sameDayYes": "Same-day registration available",
+  "registration.sameDayNo": "Same-day registration not available",
   "registration.electionInfo": "Election Info",
   "registration.absenteeInfo": "Absentee / Mail-in Voting",
   "registration.findPollingPlace": "Find Polling Place",
