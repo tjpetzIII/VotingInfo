@@ -10,7 +10,7 @@ const messages = {
 
   "voterInfo.title": "Find Your Voter Info",
   "voterInfo.subtitle":
-    "Enter your address to find polling locations, sample ballots, and more.",
+    "Enter your address to find polling locations, registration deadlines, and more.",
   "voterInfo.streetLabel": "Street Address",
   "voterInfo.streetPlaceholder": "e.g. 123 Main St",
   "voterInfo.cityLabel": "City",
@@ -19,7 +19,8 @@ const messages = {
   "voterInfo.statePlaceholder": "e.g. TX",
   "voterInfo.zipLabel": "ZIP Code",
   "voterInfo.zipPlaceholder": "e.g. 78701",
-  "voterInfo.submit": "Find My Polling Info",
+  "voterInfo.submit": "Look Up Voter Info",
+  "voterInfo.registrationSection": "Registration Info",
   "voterInfo.submitting": "Looking up…",
   "voterInfo.fillAllFields": "Please fill in all fields.",
   "voterInfo.electionDay": "Election day: {day}",

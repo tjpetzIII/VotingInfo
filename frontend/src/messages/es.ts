@@ -12,7 +12,7 @@ const messages: Record<MessageKey, string> = {
 
   "voterInfo.title": "Encuentra Tu Información de Votante",
   "voterInfo.subtitle":
-    "Ingresa tu dirección para encontrar centros de votación, boletas de muestra y más.",
+    "Ingresa tu dirección para encontrar centros de votación, plazos de registro y más.",
   "voterInfo.streetLabel": "Dirección",
   "voterInfo.streetPlaceholder": "ej. 123 Main St",
   "voterInfo.cityLabel": "Ciudad",
@@ -21,7 +21,8 @@ const messages: Record<MessageKey, string> = {
   "voterInfo.statePlaceholder": "ej. TX",
   "voterInfo.zipLabel": "Código Postal",
   "voterInfo.zipPlaceholder": "ej. 78701",
-  "voterInfo.submit": "Encontrar Mi Información de Votación",
+  "voterInfo.submit": "Buscar Información de Votante",
+  "voterInfo.registrationSection": "Información de Registro",
   "voterInfo.submitting": "Buscando…",
   "voterInfo.fillAllFields": "Por favor completa todos los campos.",
   "voterInfo.electionDay": "Día de elección: {day}",
