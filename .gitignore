@@ -25,3 +25,6 @@ Thumbs.db
 
 # MCP stuff
 .playwright-mcp
+
+.obsidian
+.temp

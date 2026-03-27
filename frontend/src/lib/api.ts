@@ -154,3 +154,38 @@ export async function fetchRegistration(address: string): Promise<RegistrationRe
   }
   return res.json();
 }
+
+// --- PA state election dates ---
+
+export interface PaElection {
+  id?: string;
+  election_name: string;
+  election_type: string;
+  election_date: string;
+  polls_hours?: string | null;
+  registration_deadline?: string | null;
+  mail_in_deadline?: string | null;
+  state_code: string;
+}
+
+export interface PaImportantDate {
+  id?: string;
+  event_date: string;
+  event_description: string;
+  election_year: number;
+  state_code: string;
+}
+
+export interface PaStateDataResponse {
+  elections: PaElection[];
+  important_dates: PaImportantDate[];
+}
+
+export async function fetchPaElections(): Promise<PaStateDataResponse> {
+  const res = await fetch(`${API_BASE}/api/pa-elections`);
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error((json as { error?: string }).error ?? `Error ${res.status}`);
+  }
+  return res.json();
+}

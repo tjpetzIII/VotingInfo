@@ -20,6 +20,8 @@ pub enum AppError {
     ValidationError(String),
     #[error("Rate limit exceeded. Please wait before retrying.")]
     RateLimited,
+    #[error("Scraper failed to parse page: {0}")]
+    ScraperError(String),
 }
 
 impl IntoResponse for AppError {
@@ -38,6 +40,9 @@ impl IntoResponse for AppError {
             AppError::Reqwest(_) => (StatusCode::BAD_GATEWAY, "EXTERNAL_API_ERROR", self.to_string()),
             AppError::Config(_) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "CONFIG_ERROR", self.to_string())
+            }
+            AppError::ScraperError(_) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "SCRAPER_ERROR", self.to_string())
             }
         };
         (status, Json(json!({ "error": message, "code": code }))).into_response()

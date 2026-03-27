@@ -17,6 +17,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 thiserror = "2"
 moka = { version = "0.12", features = ["future"] }
 tower_governor = { version = "0.4", features = [] }
+scraper = "0.20"
 
 [dev-dependencies]
 tower = { version = "0.4", features = ["util"] }

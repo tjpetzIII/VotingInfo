@@ -146,6 +146,43 @@ pub struct RegistrationResponse {
     pub election_officials: Vec<ElectionOfficial>,
 }
 
+// --- PA scraper types ---
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaElection {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    pub election_name: String,
+    pub election_type: String,
+    pub election_date: String,
+    pub polls_hours: Option<String>,
+    pub registration_deadline: Option<String>,
+    pub mail_in_deadline: Option<String>,
+    pub state_code: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaImportantDate {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    pub event_date: String,
+    pub event_description: String,
+    pub election_year: i32,
+    pub state_code: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScrapeResult {
+    pub elections_saved: usize,
+    pub dates_saved: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaStateDataResponse {
+    pub elections: Vec<PaElection>,
+    pub important_dates: Vec<PaImportantDate>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

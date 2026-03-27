@@ -2,12 +2,12 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::{middleware as axum_middleware, routing::get, Router};
+use axum::{middleware as axum_middleware, routing::{get, post}, Router};
 use tower_governor::{governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor, GovernorLayer};
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use backend::{health_handler, middleware, routes, services::civic_api::CivicApiClient};
+use backend::{health_handler, middleware, routes, AppState, services::civic_api::CivicApiClient};
 
 #[tokio::main]
 async fn main() {
@@ -25,6 +25,8 @@ async fn main() {
         CivicApiClient::new()
             .expect("Failed to initialize CivicApiClient: GOOGLE_CIVIC_API_KEY must be set"),
     );
+
+    let state = AppState::new(civic_client.clone());
 
     let cors = CorsLayer::new()
         .allow_origin(
@@ -51,8 +53,10 @@ async fn main() {
         .route("/api/elections", get(routes::elections::get_elections))
         .route("/api/all-elections", get(routes::elections::list_all_elections))
         .route("/api/registration", get(routes::elections::get_registration))
+        .route("/api/scrape/pa", post(routes::scraper::scrape_pa))
+        .route("/api/pa-elections", get(routes::scraper::get_pa_data))
         .layer(GovernorLayer { config: governor_conf })
-        .with_state(civic_client);
+        .with_state(state);
 
     let app = Router::new()
         .route("/health", get(health_handler))
