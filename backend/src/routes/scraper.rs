@@ -42,7 +42,7 @@ pub async fn get_pa_data(
         .fetch_all("pa_elections", Some("election_date.asc"))
         .await?;
     let important_dates: Vec<PaImportantDate> = supabase
-        .fetch_all("pa_election_dates", Some("event_date.asc"))
+        .fetch_all("pa_election_dates", None)
         .await?;
 
     Ok(Json(PaStateDataResponse { elections, important_dates }))

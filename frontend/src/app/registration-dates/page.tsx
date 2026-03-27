@@ -124,7 +124,13 @@ function Modal({
               <div className="border border-gray-100 rounded-xl overflow-hidden">
                 <table className="w-full text-sm">
                   <tbody>
-                    {data.important_dates.map((d, i) => (
+                    {[...data.important_dates]
+                      .sort(
+                        (a, b) =>
+                          new Date(a.event_date).getTime() -
+                          new Date(b.event_date).getTime()
+                      )
+                      .map((d, i) => (
                       <tr
                         key={d.id ?? i}
                         className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}
