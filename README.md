@@ -116,3 +116,5 @@ cd backend && cargo test --test integration # integration tests only
 | GET | `/api/registration?address=` | Returns voter registration info and state fallback links |
 | POST | `/api/scrape/pa` | Triggers PA election registration deadline scrape into Supabase |
 | GET | `/api/pa-elections` | Returns scraped PA election registration deadline data |
+| POST | `/api/scrape/al` | Triggers Alabama elections scrape into Supabase |
+| GET | `/api/al-elections` | Returns scraped Alabama statewide and local election data |

@@ -56,5 +56,7 @@ pub fn build_app_router(client: Arc<CivicApiClient>) -> Router {
         .route("/api/registration", get(routes::elections::get_registration))
         .route("/api/scrape/pa", axum::routing::post(routes::scraper::scrape_pa))
         .route("/api/pa-elections", get(routes::scraper::get_pa_data))
+        .route("/api/scrape/al", axum::routing::post(routes::scraper::scrape_al))
+        .route("/api/al-elections", get(routes::scraper::get_al_data))
         .with_state(state)
 }

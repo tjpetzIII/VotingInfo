@@ -183,6 +183,37 @@ pub struct PaStateDataResponse {
     pub important_dates: Vec<PaImportantDate>,
 }
 
+// --- AL scraper types ---
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AlElection {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    pub election_name: String,
+    pub election_type: String,
+    pub election_date: String,
+    pub polls_hours: Option<String>,
+    pub registration_deadline: Option<String>,
+    pub mail_in_deadline: Option<String>,
+    pub state_code: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AlImportantDate {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    pub event_date: String,
+    pub event_description: String,
+    pub election_year: i32,
+    pub state_code: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AlStateDataResponse {
+    pub elections: Vec<AlElection>,
+    pub important_dates: Vec<AlImportantDate>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
