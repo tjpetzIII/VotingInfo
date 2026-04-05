@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -19,7 +19,12 @@ export default function LoginPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const supabase = createClient();
+  // Lazy init: avoid constructing the Supabase client during SSR/prerender,
+  // where NEXT_PUBLIC_SUPABASE_* env vars may not be available.
+  const supabase = useMemo(
+    () => (typeof window === "undefined" ? null : createClient()),
+    []
+  );
 
   const {
     register,
@@ -30,6 +35,7 @@ export default function LoginPage() {
   const onSubmit = async (data: FormData) => {
     setError(null);
     setMessage(null);
+    if (!supabase) return;
 
     if (tab === "signin") {
       const { error } = await supabase.auth.signInWithPassword({

@@ -15,6 +15,12 @@ pub struct SupabaseClient {
     key: Option<String>,
 }
 
+impl Default for SupabaseClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SupabaseClient {
     pub fn new() -> Self {
         Self {
