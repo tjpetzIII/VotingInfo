@@ -55,6 +55,8 @@ async fn main() {
         .route("/api/registration", get(routes::elections::get_registration))
         .route("/api/scrape/pa", post(routes::scraper::scrape_pa))
         .route("/api/pa-elections", get(routes::scraper::get_pa_data))
+        .route("/api/scrape/al", post(routes::scraper::scrape_al))
+        .route("/api/al-elections", get(routes::scraper::get_al_data))
         .layer(GovernorLayer { config: governor_conf })
         .with_state(state);
 

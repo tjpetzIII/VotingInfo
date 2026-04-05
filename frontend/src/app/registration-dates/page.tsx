@@ -2,24 +2,38 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchPaElections, PaStateDataResponse } from "@/lib/api";
+import {
+  fetchAlElections,
+  fetchPaElections,
+  PaStateDataResponse,
+} from "@/lib/api";
 
 // ---- State card data (add more states here later) ----
+// Flags live in /public/flags/<code>.svg
 const STATE_CARDS = [
+  {
+    code: "AL",
+    name: "Alabama",
+    flag: "/flags/AL.svg",
+  },
   {
     code: "PA",
     name: "Pennsylvania",
-    flag: "🏛️",
+    flag: "/flags/PA.svg",
   },
-];
+].sort((a, b) => a.name.localeCompare(b.name));
 
 // ---- Modal ----
 
 function Modal({
   data,
+  stateName,
+  sourceLabel,
   onClose,
 }: {
   data: PaStateDataResponse;
+  stateName: string;
+  sourceLabel: string;
   onClose: () => void;
 }) {
   const typeColors: Record<string, string> = {
@@ -42,10 +56,10 @@ function Modal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">
-              Pennsylvania Elections
+              {stateName} Elections
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">
-              Data sourced from pa.gov
+              Data sourced from {sourceLabel}
             </p>
           </div>
           <button
@@ -151,7 +165,7 @@ function Modal({
 
           {data.elections.length === 0 && data.important_dates.length === 0 && (
             <p className="text-sm text-gray-500 text-center py-4">
-              No data available yet. Run the PA scraper to populate.
+              No data available yet. Run the {stateName} scraper to populate.
             </p>
           )}
         </div>
@@ -165,11 +179,36 @@ function Modal({
 export default function RegistrationDatesPage() {
   const [open, setOpen] = useState<string | null>(null);
 
-  const { data, isLoading, error } = useQuery({
+  const paQuery = useQuery({
     queryKey: ["pa-elections"],
     queryFn: fetchPaElections,
     enabled: open === "PA",
   });
+
+  const alQuery = useQuery({
+    queryKey: ["al-elections"],
+    queryFn: fetchAlElections,
+    enabled: open === "AL",
+  });
+
+  const active =
+    open === "PA"
+      ? {
+          query: paQuery,
+          stateName: "Pennsylvania",
+          sourceLabel: "pa.gov",
+        }
+      : open === "AL"
+      ? {
+          query: alQuery,
+          stateName: "Alabama",
+          sourceLabel: "sos.alabama.gov",
+        }
+      : null;
+
+  const isLoading = active?.query.isLoading ?? false;
+  const error = active?.query.error;
+  const data = active?.query.data;
 
   return (
     <div className="max-w-5xl mx-auto py-12 px-4">
@@ -187,7 +226,14 @@ export default function RegistrationDatesPage() {
             onClick={() => setOpen(state.code)}
             className="bg-white border border-gray-100 rounded-2xl shadow-sm px-5 py-6 text-left hover:shadow-md hover:border-blue-200 transition-all group"
           >
-            <div className="text-3xl mb-3">{state.flag}</div>
+            <div className="mb-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={state.flag}
+                alt={`${state.name} flag`}
+                className="h-8 w-auto rounded-sm shadow-sm border border-gray-100"
+              />
+            </div>
             <p className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
               {state.name}
             </p>
@@ -200,7 +246,7 @@ export default function RegistrationDatesPage() {
       </div>
 
       {/* Modal */}
-      {open === "PA" && (
+      {active && (
         <>
           {isLoading && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
@@ -213,7 +259,7 @@ export default function RegistrationDatesPage() {
                 <p className="text-red-600 text-sm mb-4">
                   {error instanceof Error
                     ? error.message
-                    : "Failed to load PA data"}
+                    : `Failed to load ${active.stateName} data`}
                 </p>
                 <button
                   onClick={() => setOpen(null)}
@@ -224,7 +270,14 @@ export default function RegistrationDatesPage() {
               </div>
             </div>
           )}
-          {data && <Modal data={data} onClose={() => setOpen(null)} />}
+          {data && (
+            <Modal
+              data={data}
+              stateName={active.stateName}
+              sourceLabel={active.sourceLabel}
+              onClose={() => setOpen(null)}
+            />
+          )}
         </>
       )}
     </div>

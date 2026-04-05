@@ -1,13 +1,25 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useIntl } from "react-intl";
 import LocaleSwitcher from "./LocaleSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function Header() {
   const intl = useIntl();
+  const pathname = usePathname();
   const { user, loading, signOut } = useAuth();
+
+  const navLinkClass = (href: string) => {
+    const isActive =
+      href === "/" ? pathname === "/" : pathname?.startsWith(href);
+    return `transition-colors border-b-2 pb-0.5 ${
+      isActive
+        ? "text-blue-600 border-blue-600"
+        : "text-gray-600 border-transparent hover:text-blue-600"
+    }`;
+  };
 
   return (
     <header className="bg-white border-b border-gray-200 shadow-sm">
@@ -19,13 +31,13 @@ export default function Header() {
           </span>
         </div>
         <nav className="flex items-center gap-4 text-sm font-medium">
-          <Link href="/" className="text-gray-600 hover:text-blue-600 transition-colors">
+          <Link href="/" className={navLinkClass("/")}>
             {intl.formatMessage({ id: "nav.allElections" })}
           </Link>
-          <Link href="/voter-info" className="text-gray-600 hover:text-blue-600 transition-colors">
+          <Link href="/voter-info" className={navLinkClass("/voter-info")}>
             {intl.formatMessage({ id: "nav.voterInfo" })}
           </Link>
-          <Link href="/registration-dates" className="text-gray-600 hover:text-blue-600 transition-colors">
+          <Link href="/registration-dates" className={navLinkClass("/registration-dates")}>
             Registration Dates
           </Link>
           <LocaleSwitcher />
