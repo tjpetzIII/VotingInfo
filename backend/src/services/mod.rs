@@ -1,3 +1,4 @@
+pub mod ak_scraper;
 pub mod al_scraper;
 pub mod civic_api;
 pub mod geocoder;

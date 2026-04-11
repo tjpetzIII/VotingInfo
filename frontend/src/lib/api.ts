@@ -224,3 +224,38 @@ export async function fetchAlElections(): Promise<AlStateDataResponse> {
   }
   return res.json();
 }
+
+// --- AK state election dates ---
+
+export interface AkElection {
+  id?: string;
+  election_name: string;
+  election_type: string;
+  election_date: string;
+  polls_hours?: string | null;
+  registration_deadline?: string | null;
+  mail_in_deadline?: string | null;
+  state_code: string;
+}
+
+export interface AkImportantDate {
+  id?: string;
+  event_date: string;
+  event_description: string;
+  election_year: number;
+  state_code: string;
+}
+
+export interface AkStateDataResponse {
+  elections: AkElection[];
+  important_dates: AkImportantDate[];
+}
+
+export async function fetchAkElections(): Promise<AkStateDataResponse> {
+  const res = await fetch(`${API_BASE}/api/ak-elections`);
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error((json as { error?: string }).error ?? `Error ${res.status}`);
+  }
+  return res.json();
+}

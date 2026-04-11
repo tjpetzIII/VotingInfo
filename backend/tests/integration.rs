@@ -550,7 +550,7 @@ async fn registration_election_unknown_uses_state_fallback() {
     // Full Civic API fields must not appear in a fallback response
     assert!(json.get("admin_name").is_none() || json["admin_name"].is_null());
     assert!(json.get("election_officials").is_none()
-        || json["election_officials"].as_array().map_or(true, |a| a.is_empty()));
+        || json["election_officials"].as_array().is_none_or(|a| a.is_empty()));
 }
 
 #[tokio::test]

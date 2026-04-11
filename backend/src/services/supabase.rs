@@ -32,11 +32,17 @@ impl SupabaseClient {
 
     /// Upsert a slice of records into `table`, merging on duplicate keys.
     ///
-    /// The table must have a `UNIQUE` constraint that Postgres can use for
-    /// conflict resolution (`ON CONFLICT DO UPDATE`).  We send
-    /// `Prefer: resolution=merge-duplicates` to PostgREST, which maps to
-    /// that behaviour.
-    pub async fn upsert<T: Serialize>(&self, table: &str, data: &[T]) -> Result<(), AppError> {
+    /// `on_conflict` must list the comma-separated column names that form the
+    /// `UNIQUE` constraint to use for conflict detection, e.g.
+    /// `"election_date,election_type"`.  PostgREST maps this to
+    /// `ON CONFLICT (cols) DO UPDATE SET …` via the `?on_conflict=` query
+    /// parameter combined with `Prefer: resolution=merge-duplicates`.
+    pub async fn upsert<T: Serialize>(
+        &self,
+        table: &str,
+        on_conflict: &str,
+        data: &[T],
+    ) -> Result<(), AppError> {
         if data.is_empty() {
             return Ok(());
         }
@@ -50,7 +56,12 @@ impl SupabaseClient {
             .as_deref()
             .ok_or_else(|| AppError::Config("SUPABASE_KEY".into()))?;
 
-        let url = format!("{}/rest/v1/{}", base_url.trim_end_matches('/'), table);
+        let url = format!(
+            "{}/rest/v1/{}?on_conflict={}",
+            base_url.trim_end_matches('/'),
+            table,
+            on_conflict
+        );
 
         let resp = self
             .http

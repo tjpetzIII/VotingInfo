@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 19 10">
+  <!-- Alaska state flag: dark blue field with gold Big Dipper and North Star -->
+  <rect width="19" height="10" fill="#003087"/>
+  <!-- Big Dipper (Ursa Major) stars -->
+  <circle cx="4"   cy="7.5" r="0.5" fill="#FFD700"/>
+  <circle cx="5.5" cy="6"   r="0.5" fill="#FFD700"/>
+  <circle cx="7"   cy="5.5" r="0.5" fill="#FFD700"/>
+  <circle cx="8.5" cy="6.5" r="0.5" fill="#FFD700"/>
+  <circle cx="10"  cy="5.5" r="0.5" fill="#FFD700"/>
+  <circle cx="11"  cy="4"   r="0.5" fill="#FFD700"/>
+  <circle cx="12"  cy="2.5" r="0.5" fill="#FFD700"/>
+  <!-- North Star (Polaris) - larger -->
+  <circle cx="17"  cy="1"   r="0.7" fill="#FFD700"/>
+</svg>
