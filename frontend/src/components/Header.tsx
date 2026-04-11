@@ -35,45 +35,55 @@ export default function Header() {
 
   return (
     <header className="bg-white border-b border-gray-200 shadow-sm">
-      <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Link href="/" className="text-2xl font-bold text-blue-600">VoteReady</Link>
-          <span className="text-sm text-gray-500 mt-1 hidden sm:inline">
+          <Link href="/" className="text-2xl font-bold text-blue-600">
+            VoteReady
+          </Link>
+          <span className="text-sm text-gray-500 mt-1 hidden xl:inline whitespace-nowrap">
             {intl.formatMessage({ id: "header.tagline" })}
           </span>
         </div>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-4 text-sm font-medium">
-          <Link href="/" className={navLinkClass("/")}>
+        <nav className="hidden md:flex items-center gap-3 text-sm font-medium">
+          <Link href="/" className={`${navLinkClass("/")} whitespace-nowrap`}>
             {intl.formatMessage({ id: "nav.allElections" })}
           </Link>
-          <Link href="/voter-info" className={navLinkClass("/voter-info")}>
+          <Link
+            href="/voter-info"
+            className={`${navLinkClass("/voter-info")} whitespace-nowrap`}
+          >
             {intl.formatMessage({ id: "nav.voterInfo" })}
           </Link>
-          <Link href="/registration-dates" className={navLinkClass("/registration-dates")}>
+          <Link
+            href="/registration-dates"
+            className={`${navLinkClass("/registration-dates")} whitespace-nowrap`}
+          >
             Registration Dates
           </Link>
           <LocaleSwitcher />
-          {!loading && (
-            user ? (
+          {!loading &&
+            (user ? (
               <div className="flex items-center gap-3">
                 <span className="text-gray-500 text-xs hidden sm:inline truncate max-w-[140px]">
                   {user.email}
                 </span>
                 <button
                   onClick={signOut}
-                  className="text-gray-600 hover:text-blue-600 transition-colors"
+                  className="text-gray-600 hover:text-blue-600 transition-colors whitespace-nowrap"
                 >
                   Sign Out
                 </button>
               </div>
             ) : (
-              <Link href="/login" className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+              <Link
+                href="/login"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors"
+              >
                 Sign In
               </Link>
-            )
-          )}
+            ))}
         </nav>
 
         {/* Mobile hamburger button */}
@@ -83,12 +93,32 @@ export default function Header() {
           aria-label="Toggle menu"
         >
           {menuOpen ? (
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           ) : (
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 6h16M4 12h16M4 18h16"
+              />
             </svg>
           )}
         </button>
@@ -97,24 +127,41 @@ export default function Header() {
       {/* Mobile dropdown menu */}
       {menuOpen && (
         <div className="md:hidden border-t border-gray-100 bg-white py-2">
-          <Link href="/" className={mobileNavLinkClass("/")} onClick={() => setMenuOpen(false)}>
+          <Link
+            href="/"
+            className={mobileNavLinkClass("/")}
+            onClick={() => setMenuOpen(false)}
+          >
             {intl.formatMessage({ id: "nav.allElections" })}
           </Link>
-          <Link href="/voter-info" className={mobileNavLinkClass("/voter-info")} onClick={() => setMenuOpen(false)}>
+          <Link
+            href="/voter-info"
+            className={mobileNavLinkClass("/voter-info")}
+            onClick={() => setMenuOpen(false)}
+          >
             {intl.formatMessage({ id: "nav.voterInfo" })}
           </Link>
-          <Link href="/registration-dates" className={mobileNavLinkClass("/registration-dates")} onClick={() => setMenuOpen(false)}>
+          <Link
+            href="/registration-dates"
+            className={mobileNavLinkClass("/registration-dates")}
+            onClick={() => setMenuOpen(false)}
+          >
             Registration Dates
           </Link>
           <div className="px-4 py-3 border-l-2 border-transparent">
             <LocaleSwitcher />
           </div>
-          {!loading && (
-            user ? (
+          {!loading &&
+            (user ? (
               <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-                <span className="text-gray-500 text-xs truncate max-w-[180px]">{user.email}</span>
+                <span className="text-gray-500 text-xs truncate max-w-[180px]">
+                  {user.email}
+                </span>
                 <button
-                  onClick={() => { signOut(); setMenuOpen(false); }}
+                  onClick={() => {
+                    signOut();
+                    setMenuOpen(false);
+                  }}
                   className="text-sm text-gray-600 hover:text-blue-600 transition-colors font-medium"
                 >
                   Sign Out
@@ -130,8 +177,7 @@ export default function Header() {
                   Sign In
                 </Link>
               </div>
-            )
-          )}
+            ))}
         </div>
       )}
     </header>

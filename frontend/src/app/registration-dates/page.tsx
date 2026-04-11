@@ -3,14 +3,19 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
+  fetchAkElections,
   fetchAlElections,
   fetchPaElections,
   PaStateDataResponse,
 } from "@/lib/api";
-
 // ---- State card data (add more states here later) ----
 // Flags live in /public/flags/<code>.svg
 const STATE_CARDS = [
+  {
+    code: "AK",
+    name: "Alaska",
+    flag: "/flags/AK.svg",
+  },
   {
     code: "AL",
     name: "Alabama",
@@ -191,6 +196,12 @@ export default function RegistrationDatesPage() {
     enabled: open === "AL",
   });
 
+  const akQuery = useQuery({
+    queryKey: ["ak-elections"],
+    queryFn: fetchAkElections,
+    enabled: open === "AK",
+  });
+
   const active =
     open === "PA"
       ? {
@@ -203,6 +214,12 @@ export default function RegistrationDatesPage() {
           query: alQuery,
           stateName: "Alabama",
           sourceLabel: "sos.alabama.gov",
+        }
+      : open === "AK"
+      ? {
+          query: akQuery,
+          stateName: "Alaska",
+          sourceLabel: "elections.alaska.gov",
         }
       : null;
 
