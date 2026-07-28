@@ -54,6 +54,7 @@ pub fn build_app_router(client: Arc<CivicApiClient>) -> Router {
         .route("/api/elections", get(routes::elections::get_elections))
         .route("/api/all-elections", get(routes::elections::list_all_elections))
         .route("/api/registration", get(routes::elections::get_registration))
+        .route("/api/elections/dates", get(routes::elections::get_election_dates))
         .route("/api/scrape/pa", axum::routing::post(routes::scraper::scrape_pa))
         .route("/api/pa-elections", get(routes::scraper::get_pa_data))
         .route("/api/scrape/al", axum::routing::post(routes::scraper::scrape_al))

@@ -62,6 +62,12 @@ export default function Header() {
           >
             Registration Dates
           </Link>
+          <Link
+            href="/dates"
+            className={`${navLinkClass("/dates")} whitespace-nowrap`}
+          >
+            {intl.formatMessage({ id: "nav.dates" })}
+          </Link>
           <LocaleSwitcher />
           {!loading &&
             (user ? (
@@ -147,6 +153,13 @@ export default function Header() {
             onClick={() => setMenuOpen(false)}
           >
             Registration Dates
+          </Link>
+          <Link
+            href="/dates"
+            className={mobileNavLinkClass("/dates")}
+            onClick={() => setMenuOpen(false)}
+          >
+            {intl.formatMessage({ id: "nav.dates" })}
           </Link>
           <div className="px-4 py-3 border-l-2 border-transparent">
             <LocaleSwitcher />

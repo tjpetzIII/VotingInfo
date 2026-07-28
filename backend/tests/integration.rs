@@ -681,6 +681,72 @@ async fn registration_no_state_body_known_state_includes_fallback_flags() {
 // GET /api/elections
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// GET /api/elections/dates
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn election_dates_returns_election_day_and_registration_deadline() {
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(voter_info_with_registration()))
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/elections/dates?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    let dates = json["dates"].as_array().unwrap();
+
+    // registrationDeadline in the fixture is "10/08/2025" (US slash format),
+    // electionDay is "2025-11-04" (ISO) — both must parse and appear, sorted.
+    assert_eq!(dates.len(), 2);
+    assert_eq!(dates[0]["category"], "registration_deadline");
+    assert_eq!(dates[0]["date"], "2025-10-08");
+    assert!(dates[0]["days_remaining"].is_i64());
+    assert_eq!(dates[1]["category"], "election_day");
+    assert_eq!(dates[1]["date"], "2025-11-04");
+    assert_eq!(dates[1]["label"], "General Election");
+}
+
+#[tokio::test]
+async fn election_dates_election_unknown_returns_empty_list() {
+    // No Civic API election data and no scraped-state match (SUPABASE_URL unset
+    // in tests) — the endpoint should still succeed with an empty date list
+    // rather than propagating the NotFound error.
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(400).set_body_json(election_unknown_response()))
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/elections/dates?address=123+Main+St,+Nowhere,+XX+00000"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    assert_eq!(json["dates"].as_array().unwrap().len(), 0);
+}
+
+#[tokio::test]
+async fn election_dates_missing_address_returns_400() {
+    let mock_server = MockServer::start().await;
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/elections/dates"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
 #[tokio::test]
 async fn elections_success() {
     let mock_server = MockServer::start().await;

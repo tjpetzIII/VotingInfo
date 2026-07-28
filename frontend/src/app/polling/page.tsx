@@ -3,25 +3,13 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import AddressForm from "@/components/AddressForm";
+import type { PollingLocation, VoterInfoResponse } from "@/lib/api";
 
 const PollingMap = dynamic(() => import("@/components/PollingMap"), {
   ssr: false,
   loading: () => <div className="h-80 bg-gray-200 rounded-2xl animate-pulse" />,
 });
 import PollingLocationCard from "@/components/PollingLocationCard";
-
-interface PollingLocation {
-  name: string | null;
-  address: string | null;
-  hours: string | null;
-  location_name: string | null;
-}
-
-interface VoterInfoResponse {
-  election: { id: string; name: string; election_day: string };
-  polling_locations: PollingLocation[];
-  contests: unknown[];
-}
 
 type PageState =
   | { status: "idle" }

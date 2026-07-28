@@ -163,6 +163,16 @@ struct ApiVoterInfoResponse {
     state: Vec<ApiAdministrationRegion>,
 }
 
+/// Core date fields pulled from a single Civic API `voterinfo` lookup, used by
+/// the `/api/elections/dates` aggregator. All fields are `None` when the Civic
+/// API has no election data for the address (`AppError::NotFound`).
+#[derive(Debug, Clone, Default)]
+pub struct CoreCivicDates {
+    pub election_name: Option<String>,
+    pub election_day: Option<String>,
+    pub registration_deadline: Option<String>,
+}
+
 pub struct CivicApiClient {
     client: Client,
     api_key: String,
@@ -282,6 +292,31 @@ impl CivicApiClient {
             .insert(address.to_string(), result.clone())
             .await;
         Ok(result)
+    }
+
+    /// Fetches election day and registration deadline for an address, for use by
+    /// the `/api/elections/dates` aggregator. Unlike `get_registration`, a missing
+    /// election (`AppError::NotFound`) is treated as "no core dates available"
+    /// rather than propagated, since the caller may still have scraped state data
+    /// to fall back on.
+    pub async fn get_core_dates(&self, address: &str) -> Result<CoreCivicDates, AppError> {
+        match self.fetch_raw(address).await {
+            Ok(raw) => {
+                let registration_deadline = raw
+                    .state
+                    .into_iter()
+                    .next()
+                    .and_then(|s| s.election_administration_body)
+                    .and_then(|b| b.registration_deadline);
+                Ok(CoreCivicDates {
+                    election_name: Some(raw.election.name),
+                    election_day: Some(raw.election.election_day),
+                    registration_deadline,
+                })
+            }
+            Err(AppError::NotFound) => Ok(CoreCivicDates::default()),
+            Err(e) => Err(e),
+        }
     }
 
     pub async fn get_all_elections(&self) -> Result<AllElectionsResponse, AppError> {
@@ -446,7 +481,7 @@ fn map_address(addr: ApiSimpleAddress) -> RegistrationAddress {
 
 /// Extracts the two-letter state abbreviation from an address string of the form
 /// `"<street>, <city>, <STATE> <zip>"`.
-fn extract_state_from_address(address: &str) -> Option<String> {
+pub(crate) fn extract_state_from_address(address: &str) -> Option<String> {
     let tokens: Vec<&str> = address.split_whitespace().collect();
     if tokens.len() >= 2 {
         let candidate = tokens[tokens.len() - 2];

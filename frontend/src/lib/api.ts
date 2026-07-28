@@ -259,3 +259,29 @@ export async function fetchAkElections(): Promise<AkStateDataResponse> {
   }
   return res.json();
 }
+
+// --- Election dates aggregation ---
+
+export interface ElectionDate {
+  label: string;
+  category: string;
+  /** ISO 8601 date string (YYYY-MM-DD). */
+  date: string;
+  /** Negative when the date is in the past. */
+  days_remaining: number;
+}
+
+export interface ElectionDatesResponse {
+  dates: ElectionDate[];
+}
+
+export async function fetchElectionDates(address: string): Promise<ElectionDatesResponse> {
+  const res = await fetch(
+    `${API_BASE}/api/elections/dates?address=${encodeURIComponent(address)}`
+  );
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error((json as { error?: string }).error ?? `Error ${res.status}`);
+  }
+  return res.json();
+}

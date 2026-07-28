@@ -3,6 +3,7 @@ import type { MessageKey } from "./en";
 const messages: Record<MessageKey, string> = {
   "nav.allElections": "Todas las Elecciones",
   "nav.voterInfo": "Información del Votante",
+  "nav.dates": "Fechas Clave",
   "header.tagline": "— Tu guía de información electoral",
   "footer.copyright": "© {year} VoteReady. Empoderando votantes en todas partes.",
 
@@ -13,18 +14,9 @@ const messages: Record<MessageKey, string> = {
   "voterInfo.title": "Encuentra Tu Información de Votante",
   "voterInfo.subtitle":
     "Ingresa tu dirección para encontrar centros de votación, plazos de registro y más.",
-  "voterInfo.streetLabel": "Dirección",
-  "voterInfo.streetPlaceholder": "ej. 123 Main St",
-  "voterInfo.cityLabel": "Ciudad",
-  "voterInfo.cityPlaceholder": "ej. Austin",
-  "voterInfo.stateLabel": "Estado",
-  "voterInfo.statePlaceholder": "ej. TX",
-  "voterInfo.zipLabel": "Código Postal",
-  "voterInfo.zipPlaceholder": "ej. 78701",
   "voterInfo.submit": "Buscar Información de Votante",
   "voterInfo.registrationSection": "Información de Registro",
   "voterInfo.submitting": "Buscando…",
-  "voterInfo.fillAllFields": "Por favor completa todos los campos.",
   "voterInfo.electionDay": "Día de elección: {day}",
   "voterInfo.pollingLocations": "Centros de Votación",
   "voterInfo.contests": "Contiendas",
@@ -68,22 +60,6 @@ const messages: Record<MessageKey, string> = {
   "addressForm.stateError": "El estado debe tener 2 letras.",
   "addressForm.zipError": "El código postal debe tener 5 dígitos.",
 
-  "nav.registration": "Registro",
-
-  "registration.title": "Registro de Votante",
-  "registration.subtitle":
-    "Ingresa tu dirección para encontrar plazos de registro, enlaces e información de contacto para tu estado.",
-  "registration.submit": "Verificar Registro",
-  "registration.submitting": "Buscando…",
-  "registration.fillAllFields": "Por favor completa todos los campos.",
-  "registration.streetLabel": "Dirección",
-  "registration.streetPlaceholder": "ej. 123 Main St",
-  "registration.cityLabel": "Ciudad",
-  "registration.cityPlaceholder": "ej. Austin",
-  "registration.stateLabel": "Estado",
-  "registration.statePlaceholder": "ej. TX",
-  "registration.zipLabel": "Código Postal",
-  "registration.zipPlaceholder": "ej. 78701",
   "registration.statusOpen": "Recursos de registro disponibles",
   "registration.statusUnavailable": "Datos de registro no disponibles",
   "registration.deadline": "Fecha Límite de Registro",
@@ -93,8 +69,6 @@ const messages: Record<MessageKey, string> = {
   "registration.officials": "Funcionarios Electorales",
   "registration.noData":
     "La información de registro no está disponible para tu ubicación a través de este servicio. Visita el sitio web oficial de elecciones de tu estado para registrarte.",
-  "registration.noElectionData":
-    "No se encontraron datos de elección activa para tu dirección — se muestra información de registro a nivel estatal.",
   "registration.stateInfo": "Información de Registro Estatal",
   "registration.onlineYes": "Registro en línea disponible",
   "registration.onlineNo": "Registro en línea no disponible",
@@ -111,7 +85,37 @@ const messages: Record<MessageKey, string> = {
   "registration.physicalAddress": "Dirección Física",
   "registration.fax": "Fax:",
   "registration.usefulLinks": "Enlaces Útiles",
-  "registration.officeContact": "Contacto de Oficina",
+
+  "dates.title": "Fechas Clave y Plazos",
+  "dates.subtitle":
+    "Ingresa tu dirección para ver todas las fechas importantes de tu próxima elección.",
+  "dates.submit": "Buscar Mis Fechas",
+  "dates.submitting": "Buscando…",
+  "dates.noResults": "No se encontraron fechas clave para esta dirección todavía.",
+  "dates.nextUpToday": "⚡ ¡Hoy!",
+  "dates.nextUpIn": "⚡ Faltan {days, plural, one {# día} other {# días}}",
+  "dates.pastLabel": "Pasada",
+  "dates.category.election_day": "Día de la Elección",
+  "dates.category.registration_deadline": "Fecha Límite de Registro",
+  "dates.category.mail_in_request_deadline": "Fecha Límite para Solicitar Boleta por Correo",
+  "dates.category.mail_in_return_deadline": "Fecha Límite para Devolver Boleta por Correo",
+  "dates.category.early_voting_start": "Inicio de Votación Anticipada",
+  "dates.category.early_voting_end": "Fin de Votación Anticipada",
+  "dates.category.general": "Fecha Importante",
+  "dates.explanation.election_day":
+    "Este es el Día de la Elección — las urnas están abiertas para que emitas tu voto.",
+  "dates.explanation.registration_deadline":
+    "Este es el último día para registrarte para votar en esta elección.",
+  "dates.explanation.mail_in_request_deadline":
+    "Este es el último día para solicitar una boleta por correo o en ausencia.",
+  "dates.explanation.mail_in_return_deadline":
+    "Esta es la fecha límite para que tu boleta por correo sea recibida o matasellada.",
+  "dates.explanation.early_voting_start":
+    "Los centros de votación anticipada abren en esta fecha.",
+  "dates.explanation.early_voting_end":
+    "Este es el último día para votar de forma anticipada en persona.",
+  "dates.explanation.general":
+    "Una fecha importante en el calendario electoral de tu área.",
 
   "notFound.title": "Página no encontrada",
   "notFound.description": "La página que buscas no existe.",

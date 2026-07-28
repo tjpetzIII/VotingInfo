@@ -53,6 +53,7 @@ async fn main() {
         .route("/api/elections", get(routes::elections::get_elections))
         .route("/api/all-elections", get(routes::elections::list_all_elections))
         .route("/api/registration", get(routes::elections::get_registration))
+        .route("/api/elections/dates", get(routes::elections::get_election_dates))
         .route("/api/scrape/pa", post(routes::scraper::scrape_pa))
         .route("/api/pa-elections", get(routes::scraper::get_pa_data))
         .route("/api/scrape/al", post(routes::scraper::scrape_al))

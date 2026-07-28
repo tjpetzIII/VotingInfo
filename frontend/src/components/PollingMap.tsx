@@ -3,13 +3,7 @@
 import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-
-interface PollingLocation {
-  name: string | null;
-  address: string | null;
-  hours: string | null;
-  location_name: string | null;
-}
+import type { PollingLocation } from "@/lib/api";
 
 interface GeocodedLocation extends PollingLocation {
   lat: number;

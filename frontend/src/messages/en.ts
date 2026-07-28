@@ -1,6 +1,7 @@
 const messages = {
   "nav.allElections": "All Elections",
   "nav.voterInfo": "Voter Info",
+  "nav.dates": "Key Dates",
   "header.tagline": "— Your voter information guide",
   "footer.copyright": "© {year} VoteReady. Empowering voters everywhere.",
 
@@ -11,18 +12,9 @@ const messages = {
   "voterInfo.title": "Find Your Voter Info",
   "voterInfo.subtitle":
     "Enter your address to find polling locations, registration deadlines, and more.",
-  "voterInfo.streetLabel": "Street Address",
-  "voterInfo.streetPlaceholder": "e.g. 123 Main St",
-  "voterInfo.cityLabel": "City",
-  "voterInfo.cityPlaceholder": "e.g. Austin",
-  "voterInfo.stateLabel": "State",
-  "voterInfo.statePlaceholder": "e.g. TX",
-  "voterInfo.zipLabel": "ZIP Code",
-  "voterInfo.zipPlaceholder": "e.g. 78701",
   "voterInfo.submit": "Look Up Voter Info",
   "voterInfo.registrationSection": "Registration Info",
   "voterInfo.submitting": "Looking up…",
-  "voterInfo.fillAllFields": "Please fill in all fields.",
   "voterInfo.electionDay": "Election day: {day}",
   "voterInfo.pollingLocations": "Polling Locations",
   "voterInfo.contests": "Contests",
@@ -66,22 +58,6 @@ const messages = {
   "addressForm.stateError": "State must be 2 letters.",
   "addressForm.zipError": "ZIP must be 5 digits.",
 
-  "nav.registration": "Registration",
-
-  "registration.title": "Voter Registration",
-  "registration.subtitle":
-    "Enter your address to find registration deadlines, links, and contact info for your state.",
-  "registration.submit": "Check Registration",
-  "registration.submitting": "Looking up…",
-  "registration.fillAllFields": "Please fill in all fields.",
-  "registration.streetLabel": "Street Address",
-  "registration.streetPlaceholder": "e.g. 123 Main St",
-  "registration.cityLabel": "City",
-  "registration.cityPlaceholder": "e.g. Austin",
-  "registration.stateLabel": "State",
-  "registration.statePlaceholder": "e.g. TX",
-  "registration.zipLabel": "ZIP Code",
-  "registration.zipPlaceholder": "e.g. 78701",
   "registration.statusOpen": "Registration resources available",
   "registration.statusUnavailable": "Registration data not available",
   "registration.deadline": "Registration Deadline",
@@ -91,8 +67,6 @@ const messages = {
   "registration.officials": "Election Officials",
   "registration.noData":
     "Registration information is not available for your location through this service. Visit your state's official election website to register.",
-  "registration.noElectionData":
-    "No active election data found for your address — showing state-level registration info below.",
   "registration.stateInfo": "State Registration Info",
   "registration.onlineYes": "Online registration available",
   "registration.onlineNo": "Online registration not available",
@@ -109,7 +83,37 @@ const messages = {
   "registration.physicalAddress": "Physical Address",
   "registration.fax": "Fax:",
   "registration.usefulLinks": "Useful Links",
-  "registration.officeContact": "Office Contact",
+
+  "dates.title": "Key Dates & Deadlines",
+  "dates.subtitle":
+    "Enter your address to see every important date for your upcoming election.",
+  "dates.submit": "Find My Dates",
+  "dates.submitting": "Looking up…",
+  "dates.noResults": "No key dates found for this address yet.",
+  "dates.nextUpToday": "⚡ Today!",
+  "dates.nextUpIn": "⚡ Coming up in {days, plural, one {# day} other {# days}}",
+  "dates.pastLabel": "Past",
+  "dates.category.election_day": "Election Day",
+  "dates.category.registration_deadline": "Registration Deadline",
+  "dates.category.mail_in_request_deadline": "Mail-In Ballot Request Deadline",
+  "dates.category.mail_in_return_deadline": "Mail-In Ballot Return Deadline",
+  "dates.category.early_voting_start": "Early Voting Begins",
+  "dates.category.early_voting_end": "Early Voting Ends",
+  "dates.category.general": "Important Date",
+  "dates.explanation.election_day":
+    "This is Election Day — polls are open for you to cast your ballot.",
+  "dates.explanation.registration_deadline":
+    "This is the last day to register to vote for this election.",
+  "dates.explanation.mail_in_request_deadline":
+    "This is the last day to request a mail-in or absentee ballot.",
+  "dates.explanation.mail_in_return_deadline":
+    "This is the deadline for your mail-in ballot to be received or postmarked.",
+  "dates.explanation.early_voting_start":
+    "Early voting locations open on this date.",
+  "dates.explanation.early_voting_end":
+    "This is the last day to vote early in person.",
+  "dates.explanation.general":
+    "An important date on the election calendar for your area.",
 
   "notFound.title": "Page not found",
   "notFound.description": "The page you're looking for doesn't exist.",

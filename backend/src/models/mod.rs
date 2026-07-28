@@ -245,6 +245,25 @@ pub struct AkStateDataResponse {
     pub important_dates: Vec<AkImportantDate>,
 }
 
+// --- Election dates aggregation types ---
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ElectionDate {
+    pub label: String,
+    /// One of: "election_day", "registration_deadline", "mail_in_request_deadline",
+    /// "mail_in_return_deadline", "early_voting_start", "early_voting_end", "general".
+    pub category: String,
+    /// ISO 8601 date string (YYYY-MM-DD).
+    pub date: String,
+    /// Negative when the date is in the past.
+    pub days_remaining: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ElectionDatesResponse {
+    pub dates: Vec<ElectionDate>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
