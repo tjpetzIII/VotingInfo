@@ -52,6 +52,7 @@ pub fn build_app_router(client: Arc<CivicApiClient>) -> Router {
         .route("/health", get(health_handler))
         .route("/api/voter-info", get(routes::elections::get_voter_info))
         .route("/api/elections", get(routes::elections::get_elections))
+        .route("/api/ballot", get(routes::elections::get_ballot))
         .route("/api/all-elections", get(routes::elections::list_all_elections))
         .route("/api/registration", get(routes::elections::get_registration))
         .route("/api/elections/dates", get(routes::elections::get_election_dates))

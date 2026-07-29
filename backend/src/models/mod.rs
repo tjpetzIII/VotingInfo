@@ -85,6 +85,49 @@ pub struct ElectionsResponse {
     pub contests: Vec<ContestDetail>,
 }
 
+// --- Ballot endpoint types ---
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BallotLevel {
+    Federal,
+    State,
+    Local,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BallotCandidate {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub party: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub candidate_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub photo_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub channels: Vec<Channel>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BallotContest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub office: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub district: Option<String>,
+    pub level: BallotLevel,
+    pub candidates: Vec<BallotCandidate>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BallotResponse {
+    pub election: Election,
+    pub contests: Vec<BallotContest>,
+}
+
 // --- Registration endpoint types ---
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -324,5 +367,39 @@ mod tests {
         let json = serde_json::to_value(&loc).unwrap();
         assert!(json["name"].is_null());
         assert!(json["address"].is_null());
+    }
+
+    #[test]
+    fn ballot_candidate_omits_missing_fields_rather_than_null() {
+        let candidate = BallotCandidate {
+            name: "John Doe".into(),
+            party: None,
+            candidate_url: None,
+            photo_url: None,
+            phone: None,
+            email: None,
+            channels: vec![],
+        };
+        let json = serde_json::to_value(&candidate).unwrap();
+        let obj = json.as_object().unwrap();
+        assert_eq!(obj["name"], "John Doe");
+        for field in ["party", "candidate_url", "photo_url", "phone", "email", "channels"] {
+            assert!(!obj.contains_key(field), "expected `{field}` to be absent");
+        }
+    }
+
+    #[test]
+    fn ballot_contest_omits_missing_office_and_district() {
+        let contest = BallotContest {
+            office: None,
+            district: None,
+            level: BallotLevel::Local,
+            candidates: vec![],
+        };
+        let json = serde_json::to_value(&contest).unwrap();
+        let obj = json.as_object().unwrap();
+        assert_eq!(obj["level"], "local");
+        assert!(!obj.contains_key("office"));
+        assert!(!obj.contains_key("district"));
     }
 }

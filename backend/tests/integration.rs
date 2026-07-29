@@ -769,3 +769,351 @@ async fn elections_success() {
     assert_eq!(contests[0]["id"], 0); // contest id is the index
     assert_eq!(contests[0]["office"], "Mayor");
 }
+
+// ---------------------------------------------------------------------------
+// GET /api/ballot
+// ---------------------------------------------------------------------------
+
+fn ballot_voter_info_multi_level() -> Value {
+    json!({
+        "election": {
+            "id": "9001",
+            "name": "General Election",
+            "electionDay": "2025-11-04"
+        },
+        "contests": [
+            {
+                "office": "City Council District 4",
+                "level": ["locality"],
+                "candidates": [{ "name": "Pat Lee" }]
+            },
+            {
+                "office": "Governor",
+                "district": { "name": "Example State" },
+                "level": ["administrativeArea1"],
+                "candidates": [{ "name": "Jamie Fox", "party": "Other Party" }]
+            },
+            {
+                "office": "President of the United States",
+                "level": ["country"],
+                "candidates": [
+                    {
+                        "name": "Jane Smith",
+                        "party": "Example Party",
+                        "candidateUrl": "https://example.com",
+                        "photoUrl": "https://example.com/photo.jpg",
+                        "phone": "555-555-5555",
+                        "email": "jane@example.com",
+                        "channels": [{ "type": "Twitter", "id": "janesmith" }]
+                    },
+                    { "name": "John Doe" }
+                ]
+            }
+        ]
+    })
+}
+
+fn ballot_voter_info_single_level() -> Value {
+    json!({
+        "election": {
+            "id": "9001",
+            "name": "General Election",
+            "electionDay": "2025-11-04"
+        },
+        "contests": [
+            {
+                "office": "City Council District 4",
+                "level": ["locality"],
+                "candidates": [{ "name": "Pat Lee" }]
+            },
+            {
+                "office": "School Board",
+                "level": ["locality"],
+                "candidates": [{ "name": "Alex Kim" }]
+            }
+        ]
+    })
+}
+
+/// Reproduces Google's actual current `voterinfo` shape for a contested primary: no `level`
+/// field on any contest (it's documented but not populated in practice), office titles and
+/// `district.scope` are the only classification signals. Modeled directly on a real response
+/// for a Michigan primary address (Governor/US Senator/State Senate/county races).
+fn ballot_voter_info_no_level_field_real_world_shape() -> Value {
+    json!({
+        "election": {
+            "id": "9483",
+            "name": "Michigan Primary Election",
+            "electionDay": "2026-08-04"
+        },
+        "contests": [
+            {
+                "office": "Governor",
+                "district": { "name": "Michigan", "scope": "statewide" },
+                "candidates": [{ "name": "Jocelyn Benson", "party": "DEMOCRATIC" }]
+            },
+            {
+                "office": "United States Senator",
+                "district": { "name": "Michigan", "scope": "statewide" },
+                "candidates": [{ "name": "Mike Rogers", "party": "REPUBLICAN" }]
+            },
+            {
+                "office": "Representative in Congress",
+                "district": { "name": "7th District" },
+                "candidates": [{ "name": "Tom Barrett", "party": "REPUBLICAN" }]
+            },
+            {
+                "office": "State Senator",
+                "district": { "name": "21st District", "scope": "stateUpper" },
+                "candidates": [{ "name": "Josh Burns", "party": "REPUBLICAN" }]
+            },
+            {
+                "district": { "name": "INGHAM COUNTY", "scope": "countywide" },
+                "candidates": []
+            }
+        ]
+    })
+}
+
+fn ballot_voter_info_empty_contests() -> Value {
+    json!({
+        "election": {
+            "id": "9001",
+            "name": "General Election",
+            "electionDay": "2025-11-04"
+        },
+        "contests": []
+    })
+}
+
+#[tokio::test]
+async fn ballot_returns_contests_sorted_by_federal_state_local() {
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(ballot_voter_info_multi_level()))
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/ballot?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    let contests = json["contests"].as_array().unwrap();
+    assert_eq!(contests.len(), 3);
+    assert_eq!(contests[0]["office"], "President of the United States");
+    assert_eq!(contests[0]["level"], "federal");
+    assert_eq!(contests[1]["office"], "Governor");
+    assert_eq!(contests[1]["level"], "state");
+    assert_eq!(contests[2]["office"], "City Council District 4");
+    assert_eq!(contests[2]["level"], "local");
+}
+
+#[tokio::test]
+async fn ballot_classifies_correctly_when_level_field_is_absent() {
+    // Regression test: Google's real API never populates `level[]` (see research.md); this
+    // must still classify correctly using office title + district.scope alone.
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(ballot_voter_info_no_level_field_real_world_shape()),
+        )
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/ballot?address=100+N+Capitol+Ave,+Lansing,+MI+48933"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    let contests = json["contests"].as_array().unwrap();
+    assert_eq!(contests.len(), 5);
+
+    let by_office = |office: &str| {
+        contests
+            .iter()
+            .find(|c| c["office"] == office)
+            .unwrap_or_else(|| panic!("missing contest for office {office}"))
+    };
+
+    // Governor and US Senator both have district.scope == "statewide" — scope alone can't
+    // tell them apart, so this proves the office-title check is what disambiguates them.
+    assert_eq!(by_office("Governor")["level"], "state");
+    assert_eq!(by_office("United States Senator")["level"], "federal");
+    assert_eq!(by_office("Representative in Congress")["level"], "federal");
+    assert_eq!(by_office("State Senator")["level"], "state");
+
+    // The county contest has no `office` at all — classified via scope fallback.
+    let county_contest = contests
+        .iter()
+        .find(|c| c["office"].is_null())
+        .expect("missing office-less county contest");
+    assert_eq!(county_contest["level"], "local");
+
+    // Federal before State before Local, regardless of source order.
+    let levels: Vec<&str> = contests.iter().map(|c| c["level"].as_str().unwrap()).collect();
+    assert_eq!(levels, vec!["federal", "federal", "state", "state", "local"]);
+}
+
+#[tokio::test]
+async fn ballot_single_level_returns_only_that_level() {
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(ballot_voter_info_single_level()))
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/ballot?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    let contests = json["contests"].as_array().unwrap();
+    assert_eq!(contests.len(), 2);
+    for contest in contests {
+        assert_eq!(contest["level"], "local");
+    }
+}
+
+#[tokio::test]
+async fn ballot_candidate_includes_all_available_fields() {
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(ballot_voter_info_multi_level()))
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/ballot?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    let json = body_json(response.into_body()).await;
+    let federal_contest = &json["contests"][0];
+    let jane = &federal_contest["candidates"][0];
+    assert_eq!(jane["name"], "Jane Smith");
+    assert_eq!(jane["party"], "Example Party");
+    assert_eq!(jane["candidate_url"], "https://example.com");
+    assert_eq!(jane["photo_url"], "https://example.com/photo.jpg");
+    assert_eq!(jane["phone"], "555-555-5555");
+    assert_eq!(jane["email"], "jane@example.com");
+    assert_eq!(jane["channels"][0]["channel_type"], "Twitter");
+    assert_eq!(jane["channels"][0]["id"], "janesmith");
+}
+
+#[tokio::test]
+async fn ballot_contest_includes_all_candidates() {
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(ballot_voter_info_multi_level()))
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/ballot?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    let json = body_json(response.into_body()).await;
+    let federal_contest = &json["contests"][0];
+    let candidates = federal_contest["candidates"].as_array().unwrap();
+    assert_eq!(candidates.len(), 2);
+    assert_eq!(candidates[0]["name"], "Jane Smith");
+    assert_eq!(candidates[1]["name"], "John Doe");
+}
+
+#[tokio::test]
+async fn ballot_candidate_missing_fields_are_omitted_not_null() {
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(ballot_voter_info_multi_level()))
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/ballot?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    let json = body_json(response.into_body()).await;
+    let federal_contest = &json["contests"][0];
+    let john = federal_contest["candidates"][1].as_object().unwrap();
+    assert_eq!(john["name"], "John Doe");
+    for field in ["party", "candidate_url", "photo_url", "phone", "email", "channels"] {
+        assert!(
+            !john.contains_key(field),
+            "expected field `{field}` to be absent, found: {:?}",
+            john.get(field)
+        );
+    }
+}
+
+#[tokio::test]
+async fn ballot_election_unknown_returns_404() {
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(400).set_body_json(election_unknown_response()))
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/ballot?address=123+Main+St,+Nowhere,+XX+00000"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let json = body_json(response.into_body()).await;
+    assert_eq!(json["code"], "NOT_FOUND");
+}
+
+#[tokio::test]
+async fn ballot_unparseable_address_returns_422() {
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(400).set_body_json(parse_error_response()))
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/ballot?address=bad"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let json = body_json(response.into_body()).await;
+    assert_eq!(json["code"], "VALIDATION_ERROR");
+}
+
+#[tokio::test]
+async fn ballot_empty_contests_returns_success() {
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(ballot_voter_info_empty_contests()))
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/ballot?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    assert_eq!(json["contests"].as_array().unwrap().len(), 0);
+}

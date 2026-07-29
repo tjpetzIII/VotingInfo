@@ -7,9 +7,10 @@ use serde::Deserialize;
 
 use crate::errors::AppError;
 use crate::models::{
-    AllElectionsResponse, Candidate, CandidateDetail, Channel, Contest, ContestDetail, Election,
-    ElectionItem, ElectionOfficial, ElectionsResponse, PollingLocation, RegistrationAddress,
-    RegistrationResponse, VoterInfoResponse,
+    AllElectionsResponse, BallotCandidate, BallotContest, BallotLevel, BallotResponse, Candidate,
+    CandidateDetail, Channel, Contest, ContestDetail, Election, ElectionItem, ElectionOfficial,
+    ElectionsResponse, PollingLocation, RegistrationAddress, RegistrationResponse,
+    VoterInfoResponse,
 };
 use crate::services::geocoder::GeocoderClient;
 use crate::services::state_registration::StateRegistrationService;
@@ -84,12 +85,15 @@ struct ApiCandidate {
 #[derive(Deserialize)]
 struct ApiDistrict {
     name: Option<String>,
+    scope: Option<String>,
 }
 
 #[derive(Deserialize)]
 struct ApiContest {
     office: Option<String>,
     district: Option<ApiDistrict>,
+    #[serde(default)]
+    level: Vec<String>,
     #[serde(default)]
     candidates: Vec<ApiCandidate>,
 }
@@ -181,6 +185,7 @@ pub struct CivicApiClient {
     elections_cache: Cache<String, ElectionsResponse>,
     all_elections_cache: Cache<String, AllElectionsResponse>,
     registration_cache: Cache<String, RegistrationResponse>,
+    ballot_cache: Cache<String, BallotResponse>,
     geocoder: GeocoderClient,
     state_registration: StateRegistrationService,
 }
@@ -225,6 +230,10 @@ impl CivicApiClient {
             .time_to_live(Duration::from_secs(15 * 60))
             .build();
 
+        let ballot_cache = Cache::builder()
+            .time_to_live(Duration::from_secs(15 * 60))
+            .build();
+
         Self {
             client: Client::new(),
             api_key,
@@ -233,6 +242,7 @@ impl CivicApiClient {
             elections_cache,
             all_elections_cache,
             registration_cache,
+            ballot_cache,
             geocoder,
             state_registration: StateRegistrationService::load(),
         }
@@ -267,6 +277,19 @@ impl CivicApiClient {
         let raw = self.fetch_raw(address).await?;
         let result = map_elections(raw);
         self.elections_cache
+            .insert(address.to_string(), result.clone())
+            .await;
+        Ok(result)
+    }
+
+    pub async fn get_ballot(&self, address: &str) -> Result<BallotResponse, AppError> {
+        if let Some(cached) = self.ballot_cache.get(address).await {
+            return Ok(cached);
+        }
+
+        let raw = self.fetch_raw(address).await?;
+        let result = map_ballot(raw);
+        self.ballot_cache
             .insert(address.to_string(), result.clone())
             .await;
         Ok(result)
@@ -616,6 +639,114 @@ fn map_registration(
     }
 }
 
+const FEDERAL_OFFICE_KEYWORDS: [&str; 4] = ["united states", "u.s.", "president", "congress"];
+
+const STATE_OFFICE_KEYWORDS: [&str; 11] = [
+    "governor",
+    "state senate",
+    "state senator",
+    "state house",
+    "state representative",
+    "state legislature",
+    "secretary of state",
+    "attorney general",
+    "state treasurer",
+    "state auditor",
+    "supreme court",
+];
+
+/// Classifies a contest into Federal/State/Local.
+///
+/// Google's Civic API `level[]` field is documented as the authoritative signal, but in
+/// practice it is always empty/absent (effectively deprecated — see research.md). `office`
+/// title keywords are the primary real-world signal instead, with `district.scope` as a
+/// fallback for contests with no distinguishing office title (e.g. county/city contests,
+/// which often have `office: null`). `scope` alone cannot disambiguate Federal from State
+/// for a "statewide" contest (both a Governor race and a U.S. Senate race report
+/// `scope: "statewide"`), so it is only consulted after the office-title check.
+fn classify_level(office: Option<&str>, scope: Option<&str>, levels: &[String]) -> BallotLevel {
+    // Honor the documented `level[]` field first, on the chance Google ever populates it.
+    if levels.iter().any(|l| l == "country" || l == "international") {
+        return BallotLevel::Federal;
+    }
+    if levels.iter().any(|l| l == "administrativeArea1") {
+        return BallotLevel::State;
+    }
+    let has_granular_level = levels.iter().any(|l| {
+        matches!(
+            l.as_str(),
+            "administrativeArea2" | "regional" | "locality" | "subLocality1" | "subLocality2" | "special"
+        )
+    });
+    if has_granular_level {
+        return BallotLevel::Local;
+    }
+
+    // Real-world fallback: classify from the office title Google actually populates.
+    if let Some(office_lower) = office.map(str::to_lowercase) {
+        if FEDERAL_OFFICE_KEYWORDS.iter().any(|kw| office_lower.contains(kw)) {
+            return BallotLevel::Federal;
+        }
+        if STATE_OFFICE_KEYWORDS.iter().any(|kw| office_lower.contains(kw)) {
+            return BallotLevel::State;
+        }
+    }
+
+    // Last resort: district.scope, for contests with no distinguishing office title.
+    match scope {
+        Some("national") | Some("congressional") => BallotLevel::Federal,
+        Some("stateUpper") | Some("stateLower") => BallotLevel::State,
+        _ => BallotLevel::Local,
+    }
+}
+
+fn map_ballot(raw: ApiVoterInfoResponse) -> BallotResponse {
+    let mut contests: Vec<BallotContest> = raw
+        .contests
+        .into_iter()
+        .map(|c| {
+            let scope = c.district.as_ref().and_then(|d| d.scope.as_deref());
+            let level = classify_level(c.office.as_deref(), scope, &c.level);
+            BallotContest {
+                office: c.office,
+                district: c.district.and_then(|d| d.name),
+                level,
+                candidates: c
+                    .candidates
+                    .into_iter()
+                    .map(|cand| BallotCandidate {
+                        name: cand.name,
+                        party: cand.party,
+                        candidate_url: cand.candidate_url,
+                        photo_url: cand.photo_url,
+                        phone: cand.phone,
+                        email: cand.email,
+                        channels: cand
+                            .channels
+                            .into_iter()
+                            .map(|ch| Channel {
+                                channel_type: ch.channel_type,
+                                id: ch.id,
+                            })
+                            .collect(),
+                    })
+                    .collect(),
+            }
+        })
+        .collect();
+
+    contests.sort_by_key(|c| c.level);
+
+    BallotResponse {
+        election: Election {
+            id: raw.election.id,
+            name: raw.election.name,
+            election_day: raw.election.election_day,
+        },
+        contests,
+    }
+}
+
 fn map_elections(raw: ApiVoterInfoResponse) -> ElectionsResponse {
     ElectionsResponse {
         election: Election {
@@ -653,5 +784,164 @@ fn map_elections(raw: ApiVoterInfoResponse) -> ElectionsResponse {
                     .collect(),
             })
             .collect(),
+    }
+}
+
+#[cfg(test)]
+mod ballot_tests {
+    use super::*;
+
+    fn levels(values: &[&str]) -> Vec<String> {
+        values.iter().map(|s| s.to_string()).collect()
+    }
+
+    // --- Explicit `level[]` signal (documented, but effectively never populated by Google
+    // in practice — see research.md). Honored first when present. ---
+
+    #[test]
+    fn classify_level_maps_country_to_federal() {
+        assert_eq!(
+            classify_level(None, None, &levels(&["country"])),
+            BallotLevel::Federal
+        );
+    }
+
+    #[test]
+    fn classify_level_maps_international_to_federal() {
+        assert_eq!(
+            classify_level(None, None, &levels(&["international"])),
+            BallotLevel::Federal
+        );
+    }
+
+    #[test]
+    fn classify_level_maps_administrative_area_1_to_state() {
+        assert_eq!(
+            classify_level(None, None, &levels(&["administrativeArea1"])),
+            BallotLevel::State
+        );
+    }
+
+    #[test]
+    fn classify_level_maps_granular_values_to_local() {
+        for value in [
+            "administrativeArea2",
+            "regional",
+            "locality",
+            "subLocality1",
+            "subLocality2",
+            "special",
+        ] {
+            assert_eq!(
+                classify_level(None, None, &levels(&[value])),
+                BallotLevel::Local,
+                "expected {value} to map to Local"
+            );
+        }
+    }
+
+    #[test]
+    fn classify_level_mixed_array_prefers_federal_over_state() {
+        assert_eq!(
+            classify_level(None, None, &levels(&["administrativeArea1", "country"])),
+            BallotLevel::Federal
+        );
+    }
+
+    #[test]
+    fn classify_level_mixed_array_prefers_state_over_local() {
+        assert_eq!(
+            classify_level(None, None, &levels(&["locality", "administrativeArea1"])),
+            BallotLevel::State
+        );
+    }
+
+    // --- Real-world fallback: office title + district.scope, since `level[]` is empty in
+    // every live response we've observed. These reproduce actual Google Civic API output
+    // for a 2026 Michigan primary address. ---
+
+    #[test]
+    fn classify_level_governor_with_statewide_scope_is_state() {
+        assert_eq!(
+            classify_level(Some("Governor"), Some("statewide"), &[]),
+            BallotLevel::State
+        );
+    }
+
+    #[test]
+    fn classify_level_us_senator_with_statewide_scope_is_federal() {
+        // Regression case: `scope: "statewide"` alone cannot distinguish this from Governor
+        // above — the office title is what makes this Federal.
+        assert_eq!(
+            classify_level(Some("United States Senator"), Some("statewide"), &[]),
+            BallotLevel::Federal
+        );
+    }
+
+    #[test]
+    fn classify_level_representative_in_congress_with_no_scope_is_federal() {
+        assert_eq!(
+            classify_level(Some("Representative in Congress"), None, &[]),
+            BallotLevel::Federal
+        );
+    }
+
+    #[test]
+    fn classify_level_president_is_federal() {
+        assert_eq!(
+            classify_level(Some("President of the United States"), None, &[]),
+            BallotLevel::Federal
+        );
+    }
+
+    #[test]
+    fn classify_level_state_senator_with_state_upper_scope_is_state() {
+        assert_eq!(
+            classify_level(Some("State Senator"), Some("stateUpper"), &[]),
+            BallotLevel::State
+        );
+    }
+
+    #[test]
+    fn classify_level_state_legislature_rep_with_state_lower_scope_is_state() {
+        assert_eq!(
+            classify_level(
+                Some("Representative in State Legislature"),
+                Some("stateLower"),
+                &[]
+            ),
+            BallotLevel::State
+        );
+    }
+
+    #[test]
+    fn classify_level_scope_falls_back_to_state_when_office_has_no_keyword() {
+        // Proves the scope fallback works on its own, independent of an office-title match.
+        assert_eq!(
+            classify_level(Some("Something Generic"), Some("stateUpper"), &[]),
+            BallotLevel::State
+        );
+    }
+
+    #[test]
+    fn classify_level_county_contest_with_no_office_is_local() {
+        // County/city contests frequently have `office: null` in real responses.
+        assert_eq!(
+            classify_level(None, Some("countywide"), &[]),
+            BallotLevel::Local
+        );
+    }
+
+    #[test]
+    fn classify_level_city_contest_with_no_office_is_local() {
+        assert_eq!(
+            classify_level(None, Some("citywide"), &[]),
+            BallotLevel::Local
+        );
+    }
+
+    #[test]
+    fn classify_level_no_signals_at_all_defaults_to_local() {
+        assert_eq!(classify_level(None, None, &[]), BallotLevel::Local);
     }
 }

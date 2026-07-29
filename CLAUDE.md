@@ -71,11 +71,11 @@ src/
   middleware.rs        — log_request: logs method, path, status, duration_ms per request
   models/mod.rs        — public API types: VoterInfoResponse, Election, PollingLocation, Contest, Candidate, ElectionsResponse, ContestDetail, CandidateDetail, Channel, ElectionItem, AllElectionsResponse
   services/civic_api.rs — CivicApiClient: wraps reqwest + three moka caches (voter-info, elections, all-elections)
-  routes/elections.rs  — GET /api/voter-info, GET /api/elections, GET /api/all-elections handlers
+  routes/elections.rs  — GET /api/voter-info, GET /api/elections, GET /api/ballot, GET /api/all-elections handlers
   bin/healthcheck.rs   — TCP connect binary used by Docker healthcheck
 ```
 
-**Request flow:** `routes/elections.rs` extracts `State<Arc<CivicApiClient>>` and `Query<AddressQuery>`, delegates to `CivicApiClient`. The client checks a `moka::future::Cache` (15-min TTL) before hitting the Google Civic Information API. Three caches: `VoterInfoResponse` and `ElectionsResponse` keyed by address string; `AllElectionsResponse` keyed by the static string `"all"` (no address needed — calls `/civicinfo/v2/elections`). Raw camelCase API types (`Api*` structs) are private to `civic_api.rs`. "VIP Test Election" is filtered out from `get_all_elections` results before caching.
+**Request flow:** `routes/elections.rs` extracts `State<Arc<CivicApiClient>>` and `Query<AddressQuery>`, delegates to `CivicApiClient`. The client checks a `moka::future::Cache` (15-min TTL) before hitting the Google Civic Information API. Four caches: `VoterInfoResponse`, `ElectionsResponse`, and `BallotResponse` keyed by address string; `AllElectionsResponse` keyed by the static string `"all"` (no address needed — calls `/civicinfo/v2/elections`). Raw camelCase API types (`Api*` structs) are private to `civic_api.rs`. "VIP Test Election" is filtered out from `get_all_elections` results before caching.
 
 **Google Civic API error mapping in `fetch_raw`:** `parseError` reason → `ValidationError` (422); `invalid` + "Election unknown" message → `NotFound` (404); other non-2xx → `ExternalApiError` (502). Raw JSON is never forwarded to the client.
 
@@ -105,4 +105,5 @@ src/
 | GET    | `/health`                  | `{"status":"ok"}`                                       |
 | GET    | `/api/voter-info?address=` | Returns `VoterInfoResponse` JSON                        |
 | GET    | `/api/elections?address=`  | Returns `ElectionsResponse` JSON                        |
+| GET    | `/api/ballot?address=`     | Returns `BallotResponse` JSON — contests sorted Federal → State → Local, full candidate details, empty fields omitted |
 | GET    | `/api/all-elections`       | Returns `AllElectionsResponse` JSON (no address needed) |

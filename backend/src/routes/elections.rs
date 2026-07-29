@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use crate::errors::AppError;
 use crate::models::{
-    AllElectionsResponse, ElectionDatesResponse, ElectionsResponse, RegistrationResponse,
-    VoterInfoResponse,
+    AllElectionsResponse, BallotResponse, ElectionDatesResponse, ElectionsResponse,
+    RegistrationResponse, VoterInfoResponse,
 };
 use crate::services::civic_api::CivicApiClient;
 use crate::services::election_dates;
@@ -39,6 +39,14 @@ pub async fn list_all_elections(
     State(client): State<Arc<CivicApiClient>>,
 ) -> Result<Json<AllElectionsResponse>, AppError> {
     let info = client.get_all_elections().await?;
+    Ok(Json(info))
+}
+
+pub async fn get_ballot(
+    State(client): State<Arc<CivicApiClient>>,
+    Query(params): Query<AddressQuery>,
+) -> Result<Json<BallotResponse>, AppError> {
+    let info = client.get_ballot(&params.address).await?;
     Ok(Json(info))
 }
 
