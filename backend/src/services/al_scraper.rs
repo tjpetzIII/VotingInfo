@@ -20,7 +20,7 @@ fn build_client() -> Result<Client, AppError> {
     let cert = Certificate::from_pem(AL_INTERMEDIATE_PEM)
         .map_err(|e| AppError::ScraperError(format!("load AL intermediate cert: {e}")))?;
     Client::builder()
-        .add_root_certificate(cert)
+        .tls_certs_merge([cert])
         .build()
         .map_err(|e| AppError::ScraperError(format!("build AL client: {e}")))
 }
