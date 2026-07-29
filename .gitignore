@@ -20,8 +20,9 @@ backend/.env
 .DS_Store
 Thumbs.db
 
-# Claude
-.claude
+# Claude (keep skills shared across the team; ignore local settings/credentials)
+.claude/*
+!.claude/skills/
 
 # MCP stuff
 .playwright-mcp

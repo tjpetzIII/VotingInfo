@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Spec-driven development
+
+Non-trivial features go through [GitHub Spec Kit](https://github.com/github/spec-kit): `/speckit-specify` →
+`/speckit-plan` → `/speckit-tasks` → `/speckit-implement`. Project principles live in
+`.specify/memory/constitution.md`; workflow details in `docs/SPEC_KIT.md`.
+
 ## Commands
 
 ### Frontend (Next.js)
