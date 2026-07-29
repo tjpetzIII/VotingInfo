@@ -2,6 +2,7 @@ const messages = {
   "nav.allElections": "All Elections",
   "nav.voterInfo": "Voter Info",
   "nav.dates": "Key Dates",
+  "nav.sampleBallot": "Sample Ballot",
   "header.tagline": "— Your voter information guide",
   "footer.copyright": "© {year} VoteReady. Empowering voters everywhere.",
 
@@ -45,6 +46,20 @@ const messages = {
   "candidate.contactInfo": "Contact info",
   "candidate.phone": "Phone:",
   "candidate.email": "Email:",
+
+  "ballot.title": "Sample Ballot",
+  "ballot.subtitle": "Enter your address to see your full ballot, grouped by level.",
+  "ballot.placeholder": "e.g. 123 Main St, Austin, TX 78701",
+  "ballot.search": "Search",
+  "ballot.submitting": "Looking up…",
+  "ballot.loadError": "Failed to load your sample ballot.",
+  "ballot.sectionFederal": "Federal",
+  "ballot.sectionState": "State",
+  "ballot.sectionLocal": "Local",
+  "ballot.noBallotData": "No sample ballot is available for this address yet.",
+  "ballot.contestFallbackLabel": "Contest",
+  "ballot.noCandidatesFound": "No candidates found",
+  "ballot.toggleSection": "Toggle {level} section",
 
   "addressForm.streetLabel": "Street Address",
   "addressForm.streetPlaceholder": "e.g. 123 Main St",

@@ -3,15 +3,25 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import LocaleSwitcher from "./LocaleSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchAllElections } from "@/lib/api";
 
 export default function Header() {
   const intl = useIntl();
   const pathname = usePathname();
   const { user, loading, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Same queryKey as the home page — shares its cache instead of double-fetching.
+  const { data: allElections } = useQuery({
+    queryKey: ["all-elections"],
+    queryFn: fetchAllElections,
+    staleTime: 5 * 60 * 1000,
+  });
+  const showBallotLink = (allElections?.elections.length ?? 0) > 0;
 
   const navLinkClass = (href: string) => {
     const isActive =
@@ -68,6 +78,14 @@ export default function Header() {
           >
             {intl.formatMessage({ id: "nav.dates" })}
           </Link>
+          {showBallotLink && (
+            <Link
+              href="/ballot"
+              className={`${navLinkClass("/ballot")} whitespace-nowrap`}
+            >
+              {intl.formatMessage({ id: "nav.sampleBallot" })}
+            </Link>
+          )}
           <LocaleSwitcher />
           {!loading &&
             (user ? (
@@ -161,6 +179,15 @@ export default function Header() {
           >
             {intl.formatMessage({ id: "nav.dates" })}
           </Link>
+          {showBallotLink && (
+            <Link
+              href="/ballot"
+              className={mobileNavLinkClass("/ballot")}
+              onClick={() => setMenuOpen(false)}
+            >
+              {intl.formatMessage({ id: "nav.sampleBallot" })}
+            </Link>
+          )}
           <div className="px-4 py-3 border-l-2 border-transparent">
             <LocaleSwitcher />
           </div>

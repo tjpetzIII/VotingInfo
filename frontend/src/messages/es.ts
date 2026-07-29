@@ -4,6 +4,7 @@ const messages: Record<MessageKey, string> = {
   "nav.allElections": "Todas las Elecciones",
   "nav.voterInfo": "Información del Votante",
   "nav.dates": "Fechas Clave",
+  "nav.sampleBallot": "Boleta de Muestra",
   "header.tagline": "— Tu guía de información electoral",
   "footer.copyright": "© {year} VoteReady. Empoderando votantes en todas partes.",
 
@@ -47,6 +48,21 @@ const messages: Record<MessageKey, string> = {
   "candidate.contactInfo": "Información de contacto",
   "candidate.phone": "Teléfono:",
   "candidate.email": "Correo:",
+
+  "ballot.title": "Boleta de Muestra",
+  "ballot.subtitle":
+    "Ingresa tu dirección para ver tu boleta completa, agrupada por nivel.",
+  "ballot.placeholder": "ej. 123 Main St, Austin, TX 78701",
+  "ballot.search": "Buscar",
+  "ballot.submitting": "Buscando…",
+  "ballot.loadError": "No se pudo cargar tu boleta de muestra.",
+  "ballot.sectionFederal": "Federal",
+  "ballot.sectionState": "Estatal",
+  "ballot.sectionLocal": "Local",
+  "ballot.noBallotData": "Todavía no hay una boleta de muestra disponible para esta dirección.",
+  "ballot.contestFallbackLabel": "Contienda",
+  "ballot.noCandidatesFound": "No se encontraron candidatos",
+  "ballot.toggleSection": "Mostrar u ocultar la sección {level}",
 
   "addressForm.streetLabel": "Dirección",
   "addressForm.streetPlaceholder": "ej. 123 Main St",

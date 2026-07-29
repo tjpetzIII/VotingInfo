@@ -155,6 +155,59 @@ export async function fetchRegistration(address: string): Promise<RegistrationRe
   return res.json();
 }
 
+// --- Sample ballot ---
+
+// Backend serializes BallotLevel with #[serde(rename_all = "lowercase")].
+export type BallotLevel = "federal" | "state" | "local";
+
+export interface BallotCandidate {
+  name: string;
+  party: string | null;
+  candidate_url: string | null;
+  photo_url: string | null;
+  phone: string | null;
+  email: string | null;
+  channels: Channel[];
+}
+
+export interface BallotContest {
+  office: string | null;
+  district: string | null;
+  level: BallotLevel;
+  candidates: BallotCandidate[];
+}
+
+export interface BallotResponse {
+  election: Election;
+  contests: BallotContest[];
+}
+
+export async function fetchBallot(address: string): Promise<BallotResponse> {
+  const res = await fetch(
+    `${API_BASE}/api/ballot?address=${encodeURIComponent(address)}`
+  );
+  if (res.status === 404) {
+    throw new Error("No sample ballot found for this address.");
+  }
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error((json as { error?: string }).error ?? `Error ${res.status}`);
+  }
+  const data = (await res.json()) as BallotResponse;
+  // Backend omits `channels` entirely when empty (skip_serializing_if); normalize so
+  // CandidateCard's `candidate.channels.length` never sees undefined.
+  return {
+    ...data,
+    contests: data.contests.map((contest) => ({
+      ...contest,
+      candidates: contest.candidates.map((candidate) => ({
+        ...candidate,
+        channels: candidate.channels ?? [],
+      })),
+    })),
+  };
+}
+
 // --- PA state election dates ---
 
 export interface PaElection {
