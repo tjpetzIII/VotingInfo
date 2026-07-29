@@ -17,6 +17,7 @@ cd frontend && npm run dev                       # dev server at localhost:3000 
 cd frontend && npm run build      # production build (MUST run from frontend/, not repo root)
 cd frontend && npm run lint
 cd frontend && npx tsc --noEmit   # type check
+cd frontend && npm run test       # Vitest unit tests (lib/api.ts, AddressForm, LocaleContext, ...)
 ```
 
 ### Backend (Rust/Axum)

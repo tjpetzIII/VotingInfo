@@ -33,6 +33,7 @@ jobs:
           cache: "yarn"
           cache-dependency-path: frontend/yarn.lock
       - run: yarn install --frozen-lockfile
+      - run: yarn test
       - run: yarn build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8080
