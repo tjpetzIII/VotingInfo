@@ -171,6 +171,7 @@ export interface BallotCandidate {
 }
 
 export interface BallotContest {
+  id: number;
   office: string | null;
   district: string | null;
   level: BallotLevel;
@@ -180,6 +181,15 @@ export interface BallotContest {
 export interface BallotResponse {
   election: Election;
   contests: BallotContest[];
+}
+
+export function findContestById(
+  contests: BallotContest[],
+  contestId: string
+): BallotContest | undefined {
+  const parsedId = parseInt(contestId, 10);
+  if (Number.isNaN(parsedId)) return undefined;
+  return contests.find((c) => c.id === parsedId);
 }
 
 export async function fetchBallot(address: string): Promise<BallotResponse> {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fetchVoterInfo, fetchAllElections } from "./api";
+import { fetchVoterInfo, fetchAllElections, findContestById, type BallotContest } from "./api";
 
 function mockFetchOnce(response: Partial<Response> & { json?: () => Promise<unknown> }) {
   vi.stubGlobal(
@@ -66,5 +66,28 @@ describe("lib/api.ts error handling", () => {
     );
 
     await expect(fetchAllElections()).resolves.toEqual(payload);
+  });
+});
+
+describe("findContestById", () => {
+  const contests: BallotContest[] = [
+    { id: 0, office: "President", district: null, level: "federal", candidates: [] },
+    { id: 1, office: "Governor", district: null, level: "state", candidates: [] },
+  ];
+
+  it("finds the matching contest by id", () => {
+    expect(findContestById(contests, "1")).toEqual(contests[1]);
+  });
+
+  it("returns undefined for a non-existent id", () => {
+    expect(findContestById(contests, "99")).toBeUndefined();
+  });
+
+  it("returns undefined for a non-numeric contestId string", () => {
+    expect(findContestById(contests, "abc")).toBeUndefined();
+  });
+
+  it("returns undefined for an empty contests array", () => {
+    expect(findContestById([], "0")).toBeUndefined();
   });
 });

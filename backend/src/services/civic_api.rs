@@ -708,6 +708,7 @@ fn map_ballot(raw: ApiVoterInfoResponse) -> BallotResponse {
             let scope = c.district.as_ref().and_then(|d| d.scope.as_deref());
             let level = classify_level(c.office.as_deref(), scope, &c.level);
             BallotContest {
+                id: 0,
                 office: c.office,
                 district: c.district.and_then(|d| d.name),
                 level,
@@ -736,6 +737,15 @@ fn map_ballot(raw: ApiVoterInfoResponse) -> BallotResponse {
         .collect();
 
     contests.sort_by_key(|c| c.level);
+
+    let contests: Vec<BallotContest> = contests
+        .into_iter()
+        .enumerate()
+        .map(|(i, mut c)| {
+            c.id = i;
+            c
+        })
+        .collect();
 
     BallotResponse {
         election: Election {
@@ -943,5 +953,46 @@ mod ballot_tests {
     #[test]
     fn classify_level_no_signals_at_all_defaults_to_local() {
         assert_eq!(classify_level(None, None, &[]), BallotLevel::Local);
+    }
+
+    fn api_contest(office: &str, scope: Option<&str>) -> ApiContest {
+        ApiContest {
+            office: Some(office.to_string()),
+            district: scope.map(|s| ApiDistrict {
+                name: Some("Test District".to_string()),
+                scope: Some(s.to_string()),
+            }),
+            level: vec![],
+            candidates: vec![],
+        }
+    }
+
+    #[test]
+    fn map_ballot_assigns_sequential_contest_ids_in_final_sorted_order() {
+        // Deliberately unsorted input order: Local, Federal, State.
+        let raw = ApiVoterInfoResponse {
+            election: ApiElection {
+                id: "1".to_string(),
+                name: "Test Election".to_string(),
+                election_day: "2026-11-03".to_string(),
+            },
+            polling_locations: vec![],
+            contests: vec![
+                api_contest("City Council", None),
+                api_contest("President of the United States", None),
+                api_contest("Governor", Some("statewide")),
+            ],
+            state: vec![],
+        };
+
+        let result = map_ballot(raw);
+
+        assert_eq!(result.contests.len(), 3);
+        assert_eq!(result.contests[0].level, BallotLevel::Federal);
+        assert_eq!(result.contests[0].id, 0);
+        assert_eq!(result.contests[1].level, BallotLevel::State);
+        assert_eq!(result.contests[1].id, 1);
+        assert_eq!(result.contests[2].level, BallotLevel::Local);
+        assert_eq!(result.contests[2].id, 2);
     }
 }

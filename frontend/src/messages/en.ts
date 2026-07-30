@@ -60,6 +60,13 @@ const messages = {
   "ballot.contestFallbackLabel": "Contest",
   "ballot.noCandidatesFound": "No candidates found",
   "ballot.toggleSection": "Toggle {level} section",
+  "ballot.backToBallot": "← Back to ballot",
+  "ballot.contestNotFound": "This contest could not be found.",
+  "ballot.noAddress": "No address provided.",
+  "ballot.searchBallot": "Search for your ballot",
+  "ballot.share": "Share",
+  "ballot.linkCopied": "Link copied!",
+  "ballot.shareCopyFailed": "Couldn't copy the link automatically — copy it manually:",
 
   "addressForm.streetLabel": "Street Address",
   "addressForm.streetPlaceholder": "e.g. 123 Main St",

@@ -63,6 +63,13 @@ const messages: Record<MessageKey, string> = {
   "ballot.contestFallbackLabel": "Contienda",
   "ballot.noCandidatesFound": "No se encontraron candidatos",
   "ballot.toggleSection": "Mostrar u ocultar la sección {level}",
+  "ballot.backToBallot": "← Volver a la boleta",
+  "ballot.contestNotFound": "No se pudo encontrar esta contienda.",
+  "ballot.noAddress": "No se proporcionó dirección.",
+  "ballot.searchBallot": "Buscar tu boleta",
+  "ballot.share": "Compartir",
+  "ballot.linkCopied": "¡Enlace copiado!",
+  "ballot.shareCopyFailed": "No se pudo copiar el enlace automáticamente — cópialo manualmente:",
 
   "addressForm.streetLabel": "Dirección",
   "addressForm.streetPlaceholder": "ej. 123 Main St",

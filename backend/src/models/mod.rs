@@ -114,6 +114,7 @@ pub struct BallotCandidate {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BallotContest {
+    pub id: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub office: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -391,6 +392,7 @@ mod tests {
     #[test]
     fn ballot_contest_omits_missing_office_and_district() {
         let contest = BallotContest {
+            id: 0,
             office: None,
             district: None,
             level: BallotLevel::Local,
@@ -398,6 +400,7 @@ mod tests {
         };
         let json = serde_json::to_value(&contest).unwrap();
         let obj = json.as_object().unwrap();
+        assert_eq!(obj["id"], 0);
         assert_eq!(obj["level"], "local");
         assert!(!obj.contains_key("office"));
         assert!(!obj.contains_key("district"));

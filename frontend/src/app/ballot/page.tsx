@@ -2,6 +2,8 @@
 
 import { Suspense, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useIntl, FormattedMessage } from "react-intl";
 import AddressForm from "@/components/AddressForm";
 import CandidateCard from "@/components/CandidateCard";
@@ -25,7 +27,8 @@ function groupByLevel(contests: BallotContest[]): Record<BallotLevel, BallotCont
 
 function BallotContent() {
   const intl = useIntl();
-  const [address, setAddress] = useState("");
+  const searchParams = useSearchParams();
+  const [address, setAddress] = useState(() => searchParams.get("address") ?? "");
   const [expandedLevels, setExpandedLevels] = useState<Record<BallotLevel, boolean>>({
     federal: true,
     state: true,
@@ -88,6 +91,7 @@ function BallotContent() {
               contests={grouped[level]}
               expanded={expandedLevels[level]}
               onToggle={() => toggleLevel(level)}
+              address={address}
             />
           ))}
         </div>
@@ -101,11 +105,13 @@ function BallotSection({
   contests,
   expanded,
   onToggle,
+  address,
 }: {
   level: BallotLevel;
   contests: BallotContest[];
   expanded: boolean;
   onToggle: () => void;
+  address: string;
 }) {
   const intl = useIntl();
   const levelLabel = intl.formatMessage({ id: LEVEL_LABEL_ID[level] });
@@ -127,7 +133,7 @@ function BallotSection({
       {expanded && (
         <div className="mt-4 flex flex-col gap-6">
           {contests.map((contest, i) => (
-            <ContestBlock key={i} contest={contest} />
+            <ContestBlock key={i} contest={contest} address={address} />
           ))}
         </div>
       )}
@@ -135,7 +141,7 @@ function BallotSection({
   );
 }
 
-function ContestBlock({ contest }: { contest: BallotContest }) {
+function ContestBlock({ contest, address }: { contest: BallotContest; address: string }) {
   const intl = useIntl();
   const title =
     [contest.office, contest.district].filter(Boolean).join(" — ") ||
@@ -143,7 +149,12 @@ function ContestBlock({ contest }: { contest: BallotContest }) {
 
   return (
     <div className="bg-white rounded-2xl shadow-md p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
+      <Link
+        href={`/ballot/${contest.id}?address=${encodeURIComponent(address)}`}
+        className="text-lg font-semibold text-gray-900 mb-4 block hover:text-blue-700"
+      >
+        {title}
+      </Link>
 
       {contest.candidates.length === 0 ? (
         <p className="text-gray-500 text-sm">
