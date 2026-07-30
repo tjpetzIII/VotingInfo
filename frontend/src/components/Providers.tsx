@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { IntlProvider } from "react-intl";
 import { LocaleProvider, useLocale } from "@/contexts/LocaleContext";
+import { AddressProvider } from "@/contexts/AddressContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import enMessages from "@/messages/en";
 import esMessages from "@/messages/es";
@@ -39,14 +40,16 @@ export default function Providers({ children }: { children: ReactNode }) {
   );
 
   return (
-    <LocaleProvider>
-      <IntlWrapper>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
-        </QueryClientProvider>
-      </IntlWrapper>
-    </LocaleProvider>
+    <AddressProvider>
+      <LocaleProvider>
+        <IntlWrapper>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </QueryClientProvider>
+        </IntlWrapper>
+      </LocaleProvider>
+    </AddressProvider>
   );
 }

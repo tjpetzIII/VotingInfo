@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import { useIntl } from "react-intl";
+import type { SavedAddress } from "@/contexts/AddressContext";
 
 interface AddressFormProps {
   onSubmit: (address: string) => void;
   loading: boolean;
   submitLabel: string;
   loadingLabel?: string;
+  /** Optional pre-fill for the four fields (e.g. the "Change" flow re-opening a saved address). */
+  initialValues?: SavedAddress | null;
 }
 
 export default function AddressForm({
@@ -15,12 +18,13 @@ export default function AddressForm({
   loading,
   submitLabel,
   loadingLabel,
+  initialValues,
 }: AddressFormProps) {
   const intl = useIntl();
-  const [street, setStreet] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
-  const [zip, setZip] = useState("");
+  const [street, setStreet] = useState(initialValues?.street ?? "");
+  const [city, setCity] = useState(initialValues?.city ?? "");
+  const [state, setState] = useState(initialValues?.state ?? "");
+  const [zip, setZip] = useState(initialValues?.zip ?? "");
   const [error, setError] = useState<string | null>(null);
 
   function handleClick() {

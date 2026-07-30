@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useIntl, FormattedMessage } from "react-intl";
 import { fetchElectionDates, type ElectionDate } from "@/lib/api";
 import AddressForm from "@/components/AddressForm";
+import AddressSummary from "@/components/AddressSummary";
+import {
+  useAddress,
+  formatAddress,
+  parseFormattedAddress,
+} from "@/contexts/AddressContext";
 
 // ---------------------------------------------------------------------------
 // Category metadata (icon + color classes are literal strings so Tailwind's
@@ -107,11 +113,12 @@ function DateCard({ item, isNextUp }: { item: ElectionDate; isNextUp: boolean })
 
 export default function DatesPage() {
   const intl = useIntl();
+  const { address: savedAddress, setAddress } = useAddress();
   const [loading, setLoading] = useState(false);
   const [dates, setDates] = useState<ElectionDate[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(address: string) {
+  const runFetch = useCallback(async (address: string) => {
     setDates(null);
     setError(null);
     setLoading(true);
@@ -123,6 +130,21 @@ export default function DatesPage() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  // Auto-fetch whenever a saved address is present (mount-time hydration or a change from any page).
+  const formatted = savedAddress ? formatAddress(savedAddress) : null;
+  useEffect(() => {
+    if (formatted) runFetch(formatted);
+  }, [formatted, runFetch]);
+
+  function handleSubmit(address: string) {
+    const parsed = parseFormattedAddress(address);
+    if (parsed) {
+      setAddress(parsed);
+    } else {
+      runFetch(address);
+    }
   }
 
   const nextUpIndex = dates?.findIndex((d) => d.days_remaining >= 0) ?? -1;
@@ -130,6 +152,7 @@ export default function DatesPage() {
 
   return (
     <div className="max-w-6xl mx-auto py-12 px-4">
+      <AddressSummary />
       <div className="flex flex-col md:flex-row md:items-start gap-6">
         <div
           className="hidden md:block shrink-0 transition-[width] duration-500 ease-in-out"

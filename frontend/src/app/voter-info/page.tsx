@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useIntl, FormattedMessage } from "react-intl";
 import {
   fetchVoterInfo,
@@ -11,6 +11,12 @@ import {
   type ElectionOfficial,
 } from "@/lib/api";
 import AddressForm from "@/components/AddressForm";
+import AddressSummary from "@/components/AddressSummary";
+import {
+  useAddress,
+  formatAddress as formatSavedAddress,
+  parseFormattedAddress,
+} from "@/contexts/AddressContext";
 
 // ---------------------------------------------------------------------------
 // Registration helpers (moved from registration/page.tsx)
@@ -160,13 +166,14 @@ function RegistrationFlags({ result }: { result: RegistrationResponse }) {
 
 export default function VoterInfoPage() {
   const intl = useIntl();
+  const { address: savedAddress, setAddress } = useAddress();
   const [loading, setLoading] = useState(false);
   const [voterInfoResult, setVoterInfoResult] = useState<VoterInfoResponse | null>(null);
   const [registrationResult, setRegistrationResult] = useState<RegistrationResponse | null>(null);
   const [voterInfoError, setVoterInfoError] = useState<string | null>(null);
   const [registrationError, setRegistrationError] = useState<string | null>(null);
 
-  async function handleSubmit(address: string) {
+  const runFetch = useCallback(async (address: string) => {
     setVoterInfoResult(null);
     setRegistrationResult(null);
     setVoterInfoError(null);
@@ -195,6 +202,21 @@ export default function VoterInfoPage() {
     }
 
     setLoading(false);
+  }, []);
+
+  // Auto-fetch whenever a saved address is present (mount-time hydration or a change from any page).
+  const formatted = savedAddress ? formatSavedAddress(savedAddress) : null;
+  useEffect(() => {
+    if (formatted) runFetch(formatted);
+  }, [formatted, runFetch]);
+
+  function handleSubmit(address: string) {
+    const parsed = parseFormattedAddress(address);
+    if (parsed) {
+      setAddress(parsed);
+    } else {
+      runFetch(address);
+    }
   }
 
   const usefulLinks = registrationResult
@@ -211,6 +233,7 @@ export default function VoterInfoPage() {
 
   return (
     <div className="max-w-6xl mx-auto py-12 px-4">
+      <AddressSummary />
       {/* Outer row: spacer shrinks to slide form left on md+ */}
       <div className="flex flex-col md:flex-row md:items-start gap-6">
         {/* Spacer — transitions width to push form from center to left on md+ */}

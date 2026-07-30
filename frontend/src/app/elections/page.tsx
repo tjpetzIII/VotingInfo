@@ -1,20 +1,37 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useIntl, FormattedMessage } from "react-intl";
 import { fetchElections, type ContestDetail } from "@/lib/api";
+import AddressSummary from "@/components/AddressSummary";
+import {
+  useAddress,
+  formatAddress,
+  parseFormattedAddress,
+} from "@/contexts/AddressContext";
 
 function ElectionsContent() {
   const intl = useIntl();
   const searchParams = useSearchParams();
-  const initialAddress = searchParams.get("address") ?? "";
+  const urlAddress = searchParams.get("address") ?? "";
+  const { address: savedAddress, setAddress: setSharedAddress } = useAddress();
 
-  const [inputValue, setInputValue] = useState(initialAddress);
-  const [address, setAddress] = useState(initialAddress);
+  const [inputValue, setInputValue] = useState(urlAddress);
+  const [address, setAddress] = useState(urlAddress);
   const [copied, setCopied] = useState(false);
+
+  // When no ?address= URL param is present, fall back to the shared saved address. The URL param,
+  // when present, keeps precedence for that page load (existing shareable-link behavior, VOT-25).
+  useEffect(() => {
+    if (!urlAddress && savedAddress) {
+      const formatted = formatAddress(savedAddress);
+      setInputValue(formatted);
+      setAddress(formatted);
+    }
+  }, [urlAddress, savedAddress]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["elections", address],
@@ -29,6 +46,8 @@ function ElectionsContent() {
     const trimmed = inputValue.trim();
     if (!trimmed) return;
     setAddress(trimmed);
+    const parsed = parseFormattedAddress(trimmed);
+    if (parsed) setSharedAddress(parsed);
     const url = new URL(window.location.href);
     url.searchParams.set("address", trimmed);
     window.history.pushState({}, "", url.toString());
@@ -67,6 +86,8 @@ function ElectionsContent() {
           <FormattedMessage id="elections.search" />
         </button>
       </form>
+
+      <AddressSummary />
 
       {isLoading && <LoadingSkeleton />}
 

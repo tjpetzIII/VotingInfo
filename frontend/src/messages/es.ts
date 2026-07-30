@@ -146,6 +146,11 @@ const messages: Record<MessageKey, string> = {
 
   "loading.text": "Cargando tu información de votante...",
 
+  "addressSummary.using": "Usando: {address}",
+  "addressSummary.change": "Cambiar",
+  "addressSummary.save": "Guardar",
+  "addressSummary.cancel": "Cancelar",
+
   "error.title": "Algo salió mal",
   "error.defaultMessage":
     "Ocurrió un error inesperado. Por favor, inténtalo de nuevo.",

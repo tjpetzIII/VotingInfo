@@ -6,13 +6,20 @@ import { useSearchParams, useParams } from "next/navigation";
 import Link from "next/link";
 import { useIntl, FormattedMessage } from "react-intl";
 import CandidateCard from "@/components/CandidateCard";
+import AddressSummary from "@/components/AddressSummary";
 import { fetchElections } from "@/lib/api";
+import { useAddress, formatAddress } from "@/contexts/AddressContext";
 
 function ContestContent() {
   const intl = useIntl();
   const { contestId } = useParams<{ contestId: string }>();
   const searchParams = useSearchParams();
-  const address = searchParams.get("address") ?? "";
+  const { address: savedAddress } = useAddress();
+  // Prefer the ?address= URL param (drill-down / shareable link); fall back to the shared saved
+  // address so the detail page doesn't show the "no address" state when one is already saved.
+  const address =
+    (searchParams.get("address") ?? "") ||
+    (savedAddress ? formatAddress(savedAddress) : "");
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["elections", address],
@@ -76,6 +83,8 @@ function ContestContent() {
       >
         <FormattedMessage id="contest.allContests" />
       </Link>
+
+      <AddressSummary />
 
       <h1 className="text-3xl font-bold text-gray-900 mb-1">
         {title || intl.formatMessage({ id: "contest.defaultTitle" })}

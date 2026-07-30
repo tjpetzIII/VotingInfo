@@ -143,6 +143,11 @@ const messages = {
 
   "loading.text": "Loading your voter information...",
 
+  "addressSummary.using": "Using: {address}",
+  "addressSummary.change": "Change",
+  "addressSummary.save": "Save",
+  "addressSummary.cancel": "Cancel",
+
   "error.title": "Something went wrong",
   "error.defaultMessage":
     "An unexpected error occurred. Please try again.",

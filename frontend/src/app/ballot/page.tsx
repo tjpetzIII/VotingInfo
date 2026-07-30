@@ -1,13 +1,19 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useIntl, FormattedMessage } from "react-intl";
 import AddressForm from "@/components/AddressForm";
+import AddressSummary from "@/components/AddressSummary";
 import CandidateCard from "@/components/CandidateCard";
 import { fetchBallot, type BallotContest, type BallotLevel } from "@/lib/api";
+import {
+  useAddress,
+  formatAddress,
+  parseFormattedAddress,
+} from "@/contexts/AddressContext";
 
 const LEVELS: BallotLevel[] = ["federal", "state", "local"];
 
@@ -28,12 +34,22 @@ function groupByLevel(contests: BallotContest[]): Record<BallotLevel, BallotCont
 function BallotContent() {
   const intl = useIntl();
   const searchParams = useSearchParams();
-  const [address, setAddress] = useState(() => searchParams.get("address") ?? "");
+  const urlAddress = searchParams.get("address") ?? "";
+  const { address: savedAddress, setAddress: setSharedAddress } = useAddress();
+  const [address, setAddress] = useState(urlAddress);
   const [expandedLevels, setExpandedLevels] = useState<Record<BallotLevel, boolean>>({
     federal: true,
     state: true,
     local: true,
   });
+
+  // When no ?address= URL param is present, fall back to the shared saved address. The URL param,
+  // when present, keeps precedence for that page load (existing shareable-link behavior, VOT-25).
+  useEffect(() => {
+    if (!urlAddress && savedAddress) {
+      setAddress(formatAddress(savedAddress));
+    }
+  }, [urlAddress, savedAddress]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["ballot", address],
@@ -42,6 +58,12 @@ function BallotContent() {
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
+
+  function handleSubmit(submitted: string) {
+    setAddress(submitted);
+    const parsed = parseFormattedAddress(submitted);
+    if (parsed) setSharedAddress(parsed);
+  }
 
   function toggleLevel(level: BallotLevel) {
     setExpandedLevels((prev) => ({ ...prev, [level]: !prev[level] }));
@@ -61,11 +83,15 @@ function BallotContent() {
 
       <div className="bg-white rounded-2xl shadow-md p-8 max-w-md">
         <AddressForm
-          onSubmit={setAddress}
+          onSubmit={handleSubmit}
           loading={isLoading}
           submitLabel={intl.formatMessage({ id: "ballot.search" })}
           loadingLabel={intl.formatMessage({ id: "ballot.submitting" })}
         />
+      </div>
+
+      <div className="mt-6">
+        <AddressSummary />
       </div>
 
       {isLoading && <LoadingSkeleton />}

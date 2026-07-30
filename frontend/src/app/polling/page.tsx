@@ -1,8 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import AddressForm from "@/components/AddressForm";
+import AddressSummary from "@/components/AddressSummary";
+import {
+  useAddress,
+  formatAddress,
+  parseFormattedAddress,
+} from "@/contexts/AddressContext";
 import type { PollingLocation, VoterInfoResponse } from "@/lib/api";
 
 const PollingMap = dynamic(() => import("@/components/PollingMap"), {
@@ -18,9 +24,10 @@ type PageState =
   | { status: "error"; message: string };
 
 export default function PollingPage() {
+  const { address: savedAddress, setAddress } = useAddress();
   const [pageState, setPageState] = useState<PageState>({ status: "idle" });
 
-  async function handleAddressSubmit(address: string) {
+  const runFetch = useCallback(async (address: string) => {
     setPageState({ status: "loading" });
     const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
@@ -47,6 +54,24 @@ export default function PollingPage() {
     } catch {
       setPageState({ status: "error", message: "Could not reach the server. Please try again." });
     }
+  }, []);
+
+  // Auto-fetch whenever a saved address is present (on mount-time hydration or a change from
+  // any page). The derived string is the effect key, so re-renders don't re-trigger fetches.
+  const formatted = savedAddress ? formatAddress(savedAddress) : null;
+  useEffect(() => {
+    if (formatted) runFetch(formatted);
+  }, [formatted, runFetch]);
+
+  function handleAddressSubmit(address: string) {
+    const parsed = parseFormattedAddress(address);
+    if (parsed) {
+      // Updates the shared context, which drives the auto-fetch effect above and propagates
+      // the address to every other page.
+      setAddress(parsed);
+    } else {
+      runFetch(address);
+    }
   }
 
   return (
@@ -55,6 +80,8 @@ export default function PollingPage() {
       <p className="text-gray-500 mb-8 text-sm">
         Enter your full address to find your polling location.
       </p>
+
+      <AddressSummary />
 
       <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
         <AddressForm

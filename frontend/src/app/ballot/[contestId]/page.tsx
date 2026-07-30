@@ -6,7 +6,9 @@ import { useSearchParams, useParams } from "next/navigation";
 import Link from "next/link";
 import { useIntl, FormattedMessage } from "react-intl";
 import CandidateCard from "@/components/CandidateCard";
+import AddressSummary from "@/components/AddressSummary";
 import { fetchBallot, findContestById } from "@/lib/api";
+import { useAddress, formatAddress } from "@/contexts/AddressContext";
 
 function candidateGridClass(count: number): string {
   return count >= 3 ? "grid grid-cols-1 md:grid-cols-3 gap-6" : "grid grid-cols-1 md:grid-cols-2 gap-6";
@@ -16,7 +18,12 @@ function ContestCompareContent() {
   const intl = useIntl();
   const { contestId } = useParams<{ contestId: string }>();
   const searchParams = useSearchParams();
-  const address = searchParams.get("address") ?? "";
+  const { address: savedAddress } = useAddress();
+  // Prefer the ?address= URL param (drill-down / shareable link); fall back to the shared saved
+  // address so the detail page doesn't show the "no address" state when one is already saved.
+  const address =
+    (searchParams.get("address") ?? "") ||
+    (savedAddress ? formatAddress(savedAddress) : "");
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
 
@@ -131,6 +138,8 @@ function ContestCompareContent() {
           />
         </div>
       )}
+
+      <AddressSummary />
 
       <h1 className="text-3xl font-bold text-gray-900 mb-1">{title}</h1>
       {data && (

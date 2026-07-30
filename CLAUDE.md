@@ -65,10 +65,13 @@ Next.js 16 App Router with React 19, TypeScript, and Tailwind CSS 3. Uses `next.
 - `src/app/error.tsx` — global client error boundary
 - `src/app/not-found.tsx` — global 404 page
 - `src/app/loading.tsx` — Suspense fallback spinner
-- `src/components/Providers.tsx` — wraps children in `LocaleProvider` → `IntlProvider` (react-intl) → `QueryClientProvider` (retry: 3, exponential backoff) → `AuthProvider`
+- `src/components/Providers.tsx` — wraps children in `AddressProvider` → `LocaleProvider` → `IntlProvider` (react-intl) → `QueryClientProvider` (retry: 3, exponential backoff) → `AuthProvider`
 - `src/components/Header.tsx` — nav bar; reads `useAuth()` for sign-in/sign-out UI and `useLocale()`/`LocaleSwitcher` for the language toggle
+- `src/components/AddressForm.tsx` — the shared street/city/state/zip form; owns all address validation and calls `onSubmit(formattedAddressString)`. Accepts an optional `initialValues?: SavedAddress` pre-fill prop (used by `AddressSummary`'s "Change" flow)
+- `src/components/AddressSummary.tsx` — shared "Using: {address} · Change" control shown on every address-driven page; reads `useAddress()`, and on "Change" re-opens `AddressForm` pre-filled with the saved values, writing any valid new address back to the shared context
 - `src/contexts/AuthContext.tsx` — `AuthProvider`/`useAuth()`; lazily creates the browser Supabase client (SSR has no `window`), tracks `user`/`loading`, exposes `signOut`
 - `src/contexts/LocaleContext.tsx` — `LocaleProvider`/`useLocale()`; persists the chosen locale (`en`/`es`) to `localStorage`
+- `src/contexts/AddressContext.tsx` — `AddressProvider`/`useAddress()` (VOT-57); holds the single most-recently-entered address as structured `SavedAddress` fields (`street`/`city`/`state`/`zip`), persisted to `localStorage` key `address` and hydrated client-side after mount (SSR-safe, mirrors `LocaleContext`). Exposes `{ address, setAddress, clearAddress }` plus `formatAddress()`/`parseFormattedAddress()` helpers. The seven address-driven pages (`voter-info`, `polling`, `dates`, `elections`, `elections/[contestId]`, `ballot`, `ballot/[contestId]`) auto-fetch from the saved address; on `elections`/`ballot` a `?address=` URL param still takes precedence for that page load
 - `src/lib/supabase/client.ts` — `createBrowserClient` from `@supabase/ssr`, for use in Client Components
 - `src/lib/supabase/server.ts` — `createServerClient` from `@supabase/ssr`, cookie-bound to the current request, for use in Server Components/route handlers
 - `src/messages/{en,es}.ts` — flat `id → string` message maps consumed by `react-intl`'s `IntlProvider`/`FormattedMessage`/`useIntl`
