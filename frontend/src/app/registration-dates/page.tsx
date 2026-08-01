@@ -63,13 +63,13 @@ function Modal({
             <h2 className="text-lg font-semibold text-gray-900">
               {stateName} Elections
             </h2>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-gray-500 mt-0.5">
               Data sourced from {sourceLabel}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="min-h-11 min-w-11 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors text-xl leading-none"
+            className="min-h-11 min-w-11 flex items-center justify-center text-gray-500 hover:text-gray-600 transition-colors text-xl leading-none"
             aria-label="Close"
           >
             ✕
@@ -107,13 +107,13 @@ function Modal({
                     <div className="mt-2 space-y-1 text-sm text-gray-600">
                       {e.polls_hours && (
                         <p>
-                          <span className="text-gray-400">Polls:</span>{" "}
+                          <span className="text-gray-500">Polls:</span>{" "}
                           {e.polls_hours}
                         </p>
                       )}
                       {e.registration_deadline && (
                         <p>
-                          <span className="text-gray-400">
+                          <span className="text-gray-500">
                             Registration deadline:
                           </span>{" "}
                           {e.registration_deadline}
@@ -121,7 +121,7 @@ function Modal({
                       )}
                       {e.mail_in_deadline && (
                         <p>
-                          <span className="text-gray-400">
+                          <span className="text-gray-500">
                             Mail-in/absentee deadline:
                           </span>{" "}
                           {e.mail_in_deadline}
@@ -254,8 +254,8 @@ export default function RegistrationDatesPage() {
             <p className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
               {state.name}
             </p>
-            <p className="text-xs text-gray-400 mt-1">{state.code}</p>
-            <p className="text-xs text-blue-500 mt-3 font-medium">
+            <p className="text-xs text-gray-500 mt-1">{state.code}</p>
+            <p className="text-xs text-blue-600 mt-3 font-medium">
               View details →
             </p>
           </button>

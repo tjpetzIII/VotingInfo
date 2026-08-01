@@ -84,7 +84,7 @@ function ElectionModal({
           </h2>
           <button
             onClick={onClose}
-            className="min-h-11 min-w-11 flex items-center justify-center text-gray-400 hover:text-gray-600 shrink-0 -mt-1 -mr-1"
+            className="min-h-11 min-w-11 flex items-center justify-center text-gray-500 hover:text-gray-600 shrink-0 -mt-1 -mr-1"
             aria-label="Close"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -102,7 +102,7 @@ function ElectionModal({
               </svg>
             </div>
             <div>
-              <p className="text-xs text-blue-500 font-medium uppercase tracking-wide">Election Day</p>
+              <p className="text-xs text-blue-600 font-medium uppercase tracking-wide">Election Day</p>
               <p className="text-sm font-semibold text-blue-800">{election.election_day}</p>
             </div>
           </div>
@@ -115,7 +115,7 @@ function ElectionModal({
               </svg>
             </div>
             <div>
-              <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Election ID</p>
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Election ID</p>
               <p className="text-sm font-mono text-gray-700">{election.id}</p>
             </div>
           </div>
@@ -130,7 +130,7 @@ function ElectionModal({
                 </svg>
               </div>
               <div>
-                <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1.5">Division</p>
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1.5">Division</p>
                 <div className="flex flex-wrap gap-1.5">
                   {divisionParts.map((part, i) => (
                     <span
@@ -208,7 +208,7 @@ export default function Home() {
                     {election.name}
                   </p>
                   {election.ocd_division_id && (
-                    <p className="text-xs text-gray-400 mt-0.5 truncate">
+                    <p className="text-xs text-gray-500 mt-0.5 truncate">
                       {formatOcdShort(election.ocd_division_id)}
                     </p>
                   )}

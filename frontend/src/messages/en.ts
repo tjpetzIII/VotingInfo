@@ -42,6 +42,7 @@ const messages = {
   "contest.allContests": "\u2190 All contests",
   "contest.defaultTitle": "Contest",
   "contest.noCandidates": "No candidate information available.",
+  "contest.candidatesHeading": "Candidates",
 
   "candidate.contactInfo": "Contact info",
   "candidate.phone": "Phone:",
