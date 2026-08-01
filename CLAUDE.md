@@ -154,7 +154,7 @@ The frontend uses `react-intl`. `src/messages/en.ts` and `src/messages/es.ts` ex
 - Backend Dockerfile: cargo-chef multi-stage build (`lukemathwalker/cargo-chef`) → `gcr.io/distroless/cc-debian12` final image. Includes `healthcheck` binary alongside `backend` binary.
 - Frontend Dockerfile: standalone npm install (bypasses workspace lockfile) → Next.js standalone output.
 - `docker-compose.yml`: backend healthcheck uses `/app/healthcheck` binary; frontend healthcheck uses `wget`; frontend `depends_on` backend with `condition: service_healthy`.
-- CI: `.github/workflows/ci.yml` runs `cargo test`, `cargo clippy`, and `next build` on PRs.
+- CI: `.github/workflows/ci.yml` runs `cargo test`, `cargo clippy`, `yarn lint`, `yarn test`, and `next build` on PRs.
 
 ### Environment
 

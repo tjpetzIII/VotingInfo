@@ -10,7 +10,6 @@ import enMessages from "@/messages/en";
 import esMessages from "@/messages/es";
 
 // Cast required for React 19 compatibility (react-intl uses class component types)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const SafeIntlProvider = IntlProvider as any;
 
 function IntlWrapper({ children }: { children: ReactNode }) {
