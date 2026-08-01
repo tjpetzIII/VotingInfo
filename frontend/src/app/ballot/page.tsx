@@ -148,7 +148,7 @@ function BallotSection({
         onClick={onToggle}
         aria-expanded={expanded}
         aria-label={intl.formatMessage({ id: "ballot.toggleSection" }, { level: levelLabel })}
-        className="w-full flex items-center justify-between gap-2 text-left border-b border-gray-200 pb-2"
+        className="min-h-11 w-full flex items-center justify-between gap-2 text-left border-b border-gray-200 py-3"
       >
         <h2 className="text-xl font-semibold text-gray-900">{levelLabel}</h2>
         <span className="text-gray-400 text-sm" aria-hidden>

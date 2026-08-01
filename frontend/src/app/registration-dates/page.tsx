@@ -69,7 +69,7 @@ function Modal({
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors text-xl leading-none"
+            className="min-h-11 min-w-11 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors text-xl leading-none"
             aria-label="Close"
           >
             ✕
@@ -140,7 +140,7 @@ function Modal({
               <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
                 Important Dates {data.important_dates[0]?.election_year}
               </h3>
-              <div className="border border-gray-100 rounded-xl overflow-hidden">
+              <div className="border border-gray-100 rounded-xl overflow-x-auto">
                 <table className="w-full text-sm">
                   <tbody>
                     {[...data.important_dates]
@@ -154,7 +154,7 @@ function Modal({
                         key={d.id ?? i}
                         className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}
                       >
-                        <td className="px-4 py-2.5 text-blue-600 font-medium whitespace-nowrap align-top w-1/3">
+                        <td className="px-4 py-2.5 text-blue-600 font-medium whitespace-nowrap align-top">
                           {d.event_date}
                         </td>
                         <td className="px-4 py-2.5 text-gray-700">
@@ -280,7 +280,7 @@ export default function RegistrationDatesPage() {
                 </p>
                 <button
                   onClick={() => setOpen(null)}
-                  className="text-sm text-gray-500 hover:text-gray-700"
+                  className="min-h-11 px-3 -mx-3 text-sm text-gray-500 hover:text-gray-700"
                 >
                   Close
                 </button>

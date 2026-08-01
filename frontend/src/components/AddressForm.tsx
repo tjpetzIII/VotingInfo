@@ -68,7 +68,7 @@ export default function AddressForm({
           value={street}
           onChange={(e) => setStreet(e.target.value)}
           placeholder={intl.formatMessage({ id: "addressForm.streetPlaceholder" })}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full min-h-11 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
@@ -82,12 +82,12 @@ export default function AddressForm({
           value={city}
           onChange={(e) => setCity(e.target.value)}
           placeholder={intl.formatMessage({ id: "addressForm.cityPlaceholder" })}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full min-h-11 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
-      <div className="flex gap-3">
-        <div className="flex-1">
+      <div className="flex flex-wrap gap-3">
+        <div className="flex-1 min-w-[7rem]">
           <label htmlFor="af-state" className="block text-sm font-medium text-gray-700 mb-1">
             {intl.formatMessage({ id: "addressForm.stateLabel" })}
           </label>
@@ -98,21 +98,22 @@ export default function AddressForm({
             onChange={(e) => setState(e.target.value.toUpperCase().slice(0, 2))}
             placeholder={intl.formatMessage({ id: "addressForm.statePlaceholder" })}
             maxLength={2}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+            className="w-full min-h-11 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
           />
         </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-[7rem]">
           <label htmlFor="af-zip" className="block text-sm font-medium text-gray-700 mb-1">
             {intl.formatMessage({ id: "addressForm.zipLabel" })}
           </label>
           <input
             id="af-zip"
             type="text"
+            inputMode="numeric"
             value={zip}
             onChange={(e) => setZip(e.target.value.replace(/\D/g, "").slice(0, 5))}
             placeholder={intl.formatMessage({ id: "addressForm.zipPlaceholder" })}
             maxLength={5}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full min-h-11 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
       </div>
@@ -121,7 +122,7 @@ export default function AddressForm({
         type="button"
         onClick={handleClick}
         disabled={loading}
-        className="mt-2 w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-2.5 rounded-lg transition-colors"
+        className="mt-2 w-full min-h-11 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-2.5 rounded-lg transition-colors"
       >
         {loading ? (loadingLabel ?? submitLabel) : submitLabel}
       </button>

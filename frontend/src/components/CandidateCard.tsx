@@ -110,7 +110,7 @@ export default function CandidateCard({ candidate }: { candidate: CandidateDetai
                 href={config.urlFn(ch.id)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`text-xs font-medium px-2.5 py-1 rounded-full ${config.className}`}
+                className={`min-h-11 inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full ${config.className}`}
               >
                 {config.label}
               </a>
@@ -124,7 +124,7 @@ export default function CandidateCard({ candidate }: { candidate: CandidateDetai
         <div className="border-t border-gray-100 pt-3">
           <button
             onClick={() => setContactOpen((o) => !o)}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 font-medium"
+            className="min-h-11 -my-2 flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 font-medium"
           >
             <span className="text-xs">{contactOpen ? "▲" : "▼"}</span>
             <FormattedMessage id="candidate.contactInfo" />

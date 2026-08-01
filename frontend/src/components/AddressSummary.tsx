@@ -41,7 +41,7 @@ export default function AddressSummary() {
         <button
           type="button"
           onClick={() => setEditing(false)}
-          className="mt-3 w-full text-sm font-medium text-gray-500 hover:text-gray-700"
+          className="mt-3 min-h-11 w-full text-sm font-medium text-gray-500 hover:text-gray-700"
         >
           {intl.formatMessage({ id: "addressSummary.cancel" })}
         </button>
@@ -63,7 +63,7 @@ export default function AddressSummary() {
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
+        className="min-h-11 -my-2 inline-flex items-center font-medium text-blue-600 hover:text-blue-700 hover:underline"
       >
         {intl.formatMessage({ id: "addressSummary.change" })}
       </button>

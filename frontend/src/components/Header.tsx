@@ -47,7 +47,7 @@ export default function Header() {
     <header className="bg-white border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Link href="/" className="text-2xl font-bold text-blue-600">
+          <Link href="/" className="min-h-11 flex items-center text-2xl font-bold text-blue-600">
             VoteReady
           </Link>
           <span className="text-sm text-gray-500 mt-1 hidden xl:inline whitespace-nowrap">
@@ -112,7 +112,7 @@ export default function Header() {
 
         {/* Mobile hamburger button */}
         <button
-          className="md:hidden p-2 rounded-lg text-gray-600 hover:text-blue-600 hover:bg-gray-100 transition-colors"
+          className="md:hidden min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-600 hover:text-blue-600 hover:bg-gray-100 transition-colors"
           onClick={() => setMenuOpen((o) => !o)}
           aria-label="Toggle menu"
         >
@@ -202,7 +202,7 @@ export default function Header() {
                     signOut();
                     setMenuOpen(false);
                   }}
-                  className="text-sm text-gray-600 hover:text-blue-600 transition-colors font-medium"
+                  className="min-h-11 flex items-center text-sm text-gray-600 hover:text-blue-600 transition-colors font-medium"
                 >
                   Sign Out
                 </button>
@@ -211,7 +211,7 @@ export default function Header() {
               <div className="px-4 py-3 border-t border-gray-100">
                 <Link
                   href="/login"
-                  className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors text-sm font-medium"
+                  className="min-h-11 flex items-center justify-center w-full text-center bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors text-sm font-medium"
                   onClick={() => setMenuOpen(false)}
                 >
                   Sign In

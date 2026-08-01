@@ -71,17 +71,17 @@ function ElectionsContent() {
         <FormattedMessage id="elections.subtitle" />
       </p>
 
-      <form onSubmit={handleSubmit} className="flex gap-3 mb-8">
+      <form onSubmit={handleSubmit} className="flex flex-wrap gap-3 mb-8">
         <input
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           placeholder={intl.formatMessage({ id: "elections.placeholder" })}
-          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <button
           type="submit"
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors"
+          className="min-h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors"
         >
           <FormattedMessage id="elections.search" />
         </button>
@@ -109,7 +109,7 @@ function ElectionsContent() {
             </div>
             <button
               onClick={handleShare}
-              className="flex-shrink-0 flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-400 px-4 py-2 rounded-lg transition-colors"
+              className="min-h-11 flex-shrink-0 flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-400 px-4 py-2 rounded-lg transition-colors"
             >
               {copied
                 ? intl.formatMessage({ id: "elections.copied" })

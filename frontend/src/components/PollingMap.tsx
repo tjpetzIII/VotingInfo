@@ -62,6 +62,8 @@ export default function PollingMap({ locations }: Props) {
         zoom={first ? 13 : 4}
         style={{ width: "100%", height: "100%" }}
         scrollWheelZoom={false}
+        dragging={true}
+        touchZoom={true}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

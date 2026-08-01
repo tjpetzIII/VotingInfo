@@ -72,7 +72,7 @@ export default function LoginPage() {
         {/* Tab switcher */}
         <div className="flex rounded-lg border border-gray-200 mb-6 overflow-hidden">
           <button
-            className={`flex-1 py-2 text-sm font-medium transition-colors ${
+            className={`min-h-11 flex-1 py-2 text-sm font-medium transition-colors ${
               tab === "signin"
                 ? "bg-blue-600 text-white"
                 : "text-gray-600 hover:bg-gray-50"
@@ -82,7 +82,7 @@ export default function LoginPage() {
             Sign In
           </button>
           <button
-            className={`flex-1 py-2 text-sm font-medium transition-colors ${
+            className={`min-h-11 flex-1 py-2 text-sm font-medium transition-colors ${
               tab === "signup"
                 ? "bg-blue-600 text-white"
                 : "text-gray-600 hover:bg-gray-50"
@@ -102,7 +102,7 @@ export default function LoginPage() {
               {...register("email")}
               type="email"
               autoComplete="email"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full min-h-11 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="you@example.com"
             />
             {errors.email && (
@@ -118,7 +118,7 @@ export default function LoginPage() {
               {...register("password")}
               type="password"
               autoComplete={tab === "signin" ? "current-password" : "new-password"}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full min-h-11 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="••••••••"
             />
             {errors.password && (
@@ -140,7 +140,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-2 rounded-lg text-sm transition-colors"
+            className="min-h-11 w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-2 rounded-lg text-sm transition-colors"
           >
             {isSubmitting
               ? "..."

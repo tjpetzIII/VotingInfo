@@ -40,7 +40,7 @@ export default function PollingLocationCard({ location }: Props) {
           href={mapsUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-auto inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
+          className="mt-auto min-h-11 inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
         >
           Get Directions →
         </a>

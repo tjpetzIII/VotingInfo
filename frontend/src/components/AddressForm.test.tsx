@@ -68,6 +68,21 @@ describe("AddressForm validation", () => {
   });
 });
 
+describe("AddressForm mobile layout", () => {
+  it("wraps the State/Zip row and gives each input a 44px minimum tap target", () => {
+    renderForm();
+
+    const stateInput = screen.getByLabelText("State");
+    const zipInput = screen.getByLabelText("ZIP Code");
+    const row = stateInput.closest("div")?.parentElement;
+
+    expect(row).toHaveClass("flex-wrap");
+    expect(stateInput).toHaveClass("min-h-11");
+    expect(zipInput).toHaveClass("min-h-11");
+    expect(zipInput).toHaveAttribute("inputMode", "numeric");
+  });
+});
+
 describe("AddressForm pre-fill", () => {
   const PREFILL = { street: "456 Oak Ave", city: "Dallas", state: "TX", zip: "75201" };
 

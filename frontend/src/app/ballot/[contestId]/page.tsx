@@ -114,7 +114,7 @@ function ContestCompareContent() {
           <button
             type="button"
             onClick={handleShare}
-            className="text-sm font-medium px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
+            className="min-h-11 text-sm font-medium px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
           >
             <FormattedMessage id="ballot.share" />
           </button>
