@@ -60,6 +60,7 @@ export default function CandidateCard({ candidate }: { candidate: CandidateDetai
       <div className="flex items-start gap-4">
         <div className="flex-shrink-0">
           {candidate.photo_url && !imgError ? (
+            // eslint-disable-next-line @next/next/no-img-element -- arbitrary external domains from the Civic API, can't be preconfigured for next/image optimization
             <img
               src={candidate.photo_url}
               alt={candidate.name}
