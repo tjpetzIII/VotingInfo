@@ -56,7 +56,11 @@ export default function PollingMap({ locations }: Props) {
   const first = geocoded[0];
 
   return (
-    <div className="rounded-2xl overflow-hidden shadow-md h-80">
+    <div
+      className="rounded-2xl overflow-hidden shadow-md h-80"
+      role="group"
+      aria-label={`Map showing ${geocoded.length} polling location${geocoded.length === 1 ? "" : "s"}; see the list below for full details`}
+    >
       <MapContainer
         center={first ? [first.lat, first.lng] : [39.8283, -98.5795]}
         zoom={first ? 13 : 4}
@@ -72,24 +76,44 @@ export default function PollingMap({ locations }: Props) {
 
         {first && <FlyTo lat={first.lat} lng={first.lng} />}
 
-        {geocoded.map((loc, i) => (
-          <CircleMarker
-            key={i}
-            center={[loc.lat, loc.lng]}
-            radius={10}
-            pathOptions={{ color: "#2563eb", fillColor: "#2563eb", fillOpacity: 0.9 }}
-          >
-            <Popup>
-              <div className="text-sm">
-                <p className="font-semibold">
-                  {loc.location_name ?? loc.name ?? "Polling Location"}
-                </p>
-                {loc.address && <p className="text-gray-600 mt-0.5">{loc.address}</p>}
-                {loc.hours && <p className="text-gray-500 mt-1">Hours: {loc.hours}</p>}
-              </div>
-            </Popup>
-          </CircleMarker>
-        ))}
+        {geocoded.map((loc, i) => {
+          const label = `${loc.location_name ?? loc.name ?? "Polling location"}${
+            loc.address ? `, ${loc.address}` : ""
+          }`;
+          return (
+            <CircleMarker
+              key={i}
+              center={[loc.lat, loc.lng]}
+              radius={10}
+              pathOptions={{ color: "#2563eb", fillColor: "#2563eb", fillOpacity: 0.9 }}
+              eventHandlers={{
+                add: (e) => {
+                  const el = e.target.getElement();
+                  if (!el) return;
+                  el.setAttribute("tabindex", "0");
+                  el.setAttribute("role", "button");
+                  el.setAttribute("aria-label", label);
+                  el.addEventListener("keydown", (evt: KeyboardEvent) => {
+                    if (evt.key === "Enter" || evt.key === " ") {
+                      evt.preventDefault();
+                      e.target.openPopup();
+                    }
+                  });
+                },
+              }}
+            >
+              <Popup>
+                <div className="text-sm">
+                  <p className="font-semibold">
+                    {loc.location_name ?? loc.name ?? "Polling Location"}
+                  </p>
+                  {loc.address && <p className="text-gray-600 mt-0.5">{loc.address}</p>}
+                  {loc.hours && <p className="text-gray-500 mt-1">Hours: {loc.hours}</p>}
+                </div>
+              </Popup>
+            </CircleMarker>
+          );
+        })}
       </MapContainer>
     </div>
   );

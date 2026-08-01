@@ -100,11 +100,16 @@ function ContestContent() {
           <FormattedMessage id="contest.noCandidates" />
         </p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {contest.candidates.map((candidate, i) => (
-            <CandidateCard key={i} candidate={candidate} />
-          ))}
-        </div>
+        <>
+          <h2 className="sr-only">
+            <FormattedMessage id="contest.candidatesHeading" />
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {contest.candidates.map((candidate, i) => (
+              <CandidateCard key={i} candidate={candidate} />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

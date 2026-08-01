@@ -87,7 +87,7 @@ function DateCard({ item, isNextUp }: { item: ElectionDate; isNextUp: boolean })
           {categoryLabel}
         </span>
         {isPast && (
-          <span className="text-xs font-medium text-gray-400 shrink-0">
+          <span className="text-xs font-medium text-gray-500 shrink-0">
             <FormattedMessage id="dates.pastLabel" />
           </span>
         )}
@@ -97,7 +97,7 @@ function DateCard({ item, isNextUp }: { item: ElectionDate; isNextUp: boolean })
         <p className={`text-base font-semibold text-gray-900 capitalize ${isPast ? "line-through decoration-gray-400" : ""}`}>
           {item.label}
         </p>
-        <p className={`text-sm font-medium mt-0.5 ${isPast ? "text-gray-400 line-through" : "text-blue-600"}`}>
+        <p className={`text-sm font-medium mt-0.5 ${isPast ? "text-gray-500 line-through" : "text-blue-600"}`}>
           {formatDisplayDate(item.date)}
         </p>
       </div>

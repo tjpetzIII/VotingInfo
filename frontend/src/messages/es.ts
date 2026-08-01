@@ -44,6 +44,7 @@ const messages: Record<MessageKey, string> = {
   "contest.allContests": "\u2190 Todas las contiendas",
   "contest.defaultTitle": "Contienda",
   "contest.noCandidates": "No hay información de candidatos disponible.",
+  "contest.candidatesHeading": "Candidatos",
 
   "candidate.contactInfo": "Información de contacto",
   "candidate.phone": "Teléfono:",

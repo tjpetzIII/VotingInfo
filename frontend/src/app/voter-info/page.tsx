@@ -294,7 +294,7 @@ export default function VoterInfoPage() {
                       <li key={i} className="text-sm text-gray-700">
                         {loc.location_name && <p className="font-medium capitalize">{loc.location_name}</p>}
                         {loc.address && <p className="text-gray-500 capitalize">{loc.address}</p>}
-                        {loc.hours && <p className="text-gray-400 text-xs mt-0.5 capitalize">{loc.hours}</p>}
+                        {loc.hours && <p className="text-gray-500 text-xs mt-0.5 capitalize">{loc.hours}</p>}
                       </li>
                     ))}
                   </ul>
@@ -313,7 +313,7 @@ export default function VoterInfoPage() {
                         <p className="text-sm font-medium text-gray-800 capitalize">
                           {contest.office ?? intl.formatMessage({ id: "voterInfo.unknownOffice" })}
                           {contest.district && (
-                            <span className="text-gray-400 font-normal capitalize"> — {contest.district}</span>
+                            <span className="text-gray-500 font-normal capitalize"> — {contest.district}</span>
                           )}
                         </p>
                         {contest.candidates.length > 0 && (
@@ -322,7 +322,7 @@ export default function VoterInfoPage() {
                               <li key={j} className="text-sm text-gray-600 flex items-center gap-1.5 capitalize">
                                 <span className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0" />
                                 {c.name}
-                                {c.party && <span className="text-gray-400 text-xs">({c.party})</span>}
+                                {c.party && <span className="text-gray-500 text-xs">({c.party})</span>}
                               </li>
                             ))}
                           </ul>
@@ -375,7 +375,7 @@ export default function VoterInfoPage() {
                             href={registrationResult.registration_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="block w-full text-center bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-lg transition-colors"
+                            className="block w-full text-center bg-green-700 hover:bg-green-800 text-white font-semibold py-2.5 rounded-lg transition-colors"
                           >
                             <FormattedMessage id="registration.registerNow" />
                           </a>

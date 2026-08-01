@@ -26,7 +26,7 @@ const CHANNEL_CONFIG: Record<
   GooglePlus: {
     label: "Google+",
     urlFn: (id) => `https://plus.google.com/${id}`,
-    className: "bg-red-400 text-white",
+    className: "bg-red-600 text-white",
   },
 };
 

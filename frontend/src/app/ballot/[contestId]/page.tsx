@@ -153,11 +153,16 @@ function ContestCompareContent() {
           <FormattedMessage id="ballot.noCandidatesFound" />
         </p>
       ) : (
-        <div className={candidateGridClass(contest.candidates.length)}>
-          {contest.candidates.map((candidate, i) => (
-            <CandidateCard key={i} candidate={candidate} />
-          ))}
-        </div>
+        <>
+          <h2 className="sr-only">
+            <FormattedMessage id="contest.candidatesHeading" />
+          </h2>
+          <div className={candidateGridClass(contest.candidates.length)}>
+            {contest.candidates.map((candidate, i) => (
+              <CandidateCard key={i} candidate={candidate} />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

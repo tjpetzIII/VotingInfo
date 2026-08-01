@@ -117,6 +117,7 @@ export default function PollingPage() {
           ) : (
             <>
               <PollingMap locations={pageState.data.polling_locations} />
+              <h2 className="sr-only">Polling Locations</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {pageState.data.polling_locations.map((loc, i) => (
                   <PollingLocationCard key={i} location={loc} />
