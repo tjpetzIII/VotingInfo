@@ -44,12 +44,16 @@ pub async fn health_handler() -> Json<Value> {
     Json(json!({ "status": "ok" }))
 }
 
-/// Builds the application router with all routes and state, without middleware layers.
-/// Used by tests; production `main` wraps this with CORS, rate-limiting, and logging.
-pub fn build_app_router(client: Arc<CivicApiClient>) -> Router {
-    let state = AppState::new(client);
+/// The `/health` route, kept separate from `api_router` so callers can layer
+/// rate-limiting onto `/api/*` only, matching production behavior.
+pub fn health_router() -> Router<AppState> {
+    Router::new().route("/health", get(health_handler))
+}
+
+/// All `/api/*` routes. Single source of truth shared by `build_app_router`
+/// (tests) and `main` (production, which adds CORS/governor/logging layers).
+pub fn api_router() -> Router<AppState> {
     Router::new()
-        .route("/health", get(health_handler))
         .route("/api/voter-info", get(routes::elections::get_voter_info))
         .route("/api/elections", get(routes::elections::get_elections))
         .route("/api/ballot", get(routes::elections::get_ballot))
@@ -62,5 +66,14 @@ pub fn build_app_router(client: Arc<CivicApiClient>) -> Router {
         .route("/api/al-elections", get(routes::scraper::get_al_data))
         .route("/api/scrape/ak", axum::routing::post(routes::scraper::scrape_ak))
         .route("/api/ak-elections", get(routes::scraper::get_ak_data))
+}
+
+/// Builds the application router with all routes and state, without middleware layers.
+/// Used by tests; production `main` wraps `api_router`/`health_router` with CORS,
+/// rate-limiting, and logging instead.
+pub fn build_app_router(client: Arc<CivicApiClient>) -> Router {
+    let state = AppState::new(client);
+    health_router()
+        .merge(api_router())
         .with_state(state)
 }

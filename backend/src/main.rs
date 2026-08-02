@@ -2,12 +2,12 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::{middleware as axum_middleware, routing::{get, post}, Router};
+use axum::middleware as axum_middleware;
 use tower_governor::{governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor, GovernorLayer};
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use backend::{health_handler, middleware, routes, AppState, services::civic_api::CivicApiClient};
+use backend::{api_router, health_router, middleware, AppState, services::civic_api::CivicApiClient};
 
 #[tokio::main]
 async fn main() {
@@ -48,24 +48,12 @@ async fn main() {
             .unwrap(),
     );
 
-    let api_routes = Router::new()
-        .route("/api/voter-info", get(routes::elections::get_voter_info))
-        .route("/api/elections", get(routes::elections::get_elections))
-        .route("/api/ballot", get(routes::elections::get_ballot))
-        .route("/api/all-elections", get(routes::elections::list_all_elections))
-        .route("/api/registration", get(routes::elections::get_registration))
-        .route("/api/elections/dates", get(routes::elections::get_election_dates))
-        .route("/api/scrape/pa", post(routes::scraper::scrape_pa))
-        .route("/api/pa-elections", get(routes::scraper::get_pa_data))
-        .route("/api/scrape/al", post(routes::scraper::scrape_al))
-        .route("/api/al-elections", get(routes::scraper::get_al_data))
-        .route("/api/scrape/ak", post(routes::scraper::scrape_ak))
-        .route("/api/ak-elections", get(routes::scraper::get_ak_data))
+    let api_routes = api_router()
         .layer(GovernorLayer { config: governor_conf })
-        .with_state(state);
+        .with_state(state.clone());
 
-    let app = Router::new()
-        .route("/health", get(health_handler))
+    let app = health_router()
+        .with_state(state)
         .merge(api_routes)
         .layer(axum_middleware::from_fn(middleware::log_request))
         .layer(cors);
