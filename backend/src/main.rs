@@ -49,7 +49,7 @@ async fn main() {
     );
 
     let api_routes = api_router()
-        .layer(GovernorLayer { config: governor_conf })
+        .layer(GovernorLayer::new(governor_conf))
         .with_state(state.clone());
 
     let app = health_router()
