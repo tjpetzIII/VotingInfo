@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 19 10">
+  <!-- Arizona state flag: copper star over radiating red/gold rays on top, blue below -->
+  <rect width="19" height="5" fill="#0067a5"/>
+  <rect y="5" width="19" height="5" fill="#0067a5"/>
+  <path d="M0,5 L19,5 L19,0 L14.25,0 Z" fill="#ce1126"/>
+  <path d="M0,5 L19,5 L19,0 L9.5,0 Z" fill="none"/>
+  <path d="M9.5,5 L0,0 L4.75,0 Z" fill="#f2b90c"/>
+  <path d="M9.5,5 L4.75,0 L9.5,0 Z" fill="#ce1126"/>
+  <path d="M9.5,5 L9.5,0 L14.25,0 Z" fill="#f2b90c"/>
+  <path d="M9.5,5 L14.25,0 L19,0 Z" fill="#ce1126"/>
+  <path d="M9.5,5 L19,0 L19,5 Z" fill="#f2b90c"/>
+  <circle cx="9.5" cy="5" r="1.6" fill="#b3703a" stroke="#ffffff" stroke-width="0.1"/>
+</svg>

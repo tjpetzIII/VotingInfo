@@ -194,7 +194,7 @@ CI (`.github/workflows/ci.yml`) runs `cargo test` + `cargo clippy`, and `next bu
 | `/ballot` | Sample ballot grouped Federal → State → Local |
 | `/polling` | Polling locations on an interactive map |
 | `/dates` | Aggregated election-date timeline for an address |
-| `/registration-dates` | Per-state cards (AK/AL/PA) with scraped registration deadlines |
+| `/registration-dates` | Per-state cards (AK/AL/PA/WI/MI/OH/GA/AZ/NV/NC/FL) with scraped registration deadlines |
 | `/login` | Sign in / sign up via Supabase Auth |
 
 ## API Endpoints
@@ -214,6 +214,22 @@ CI (`.github/workflows/ci.yml`) runs `cargo test` + `cargo clippy`, and `next bu
 | GET | `/api/al-elections` | Scraped Alabama election + important-date data |
 | POST | `/api/scrape/ak` | Scrapes Alaska's election-info and calendar pages into Supabase |
 | GET | `/api/ak-elections` | Scraped Alaska election + important-date data |
+| POST | `/api/scrape/wi` | Scrapes Wisconsin's election dates (via usvotefoundation.org) into Supabase |
+| GET | `/api/wi-elections` | Scraped Wisconsin election + important-date data |
+| POST | `/api/scrape/mi` | Scrapes Michigan's election dates (via usvotefoundation.org) into Supabase |
+| GET | `/api/mi-elections` | Scraped Michigan election + important-date data |
+| POST | `/api/scrape/oh` | Scrapes Ohio's election dates (via usvotefoundation.org) into Supabase |
+| GET | `/api/oh-elections` | Scraped Ohio election + important-date data |
+| POST | `/api/scrape/ga` | Scrapes Georgia's election dates (via usvotefoundation.org) into Supabase |
+| GET | `/api/ga-elections` | Scraped Georgia election + important-date data |
+| POST | `/api/scrape/az` | Scrapes Arizona's election dates (via usvotefoundation.org) into Supabase |
+| GET | `/api/az-elections` | Scraped Arizona election + important-date data |
+| POST | `/api/scrape/nv` | Scrapes Nevada's election dates (via usvotefoundation.org) into Supabase |
+| GET | `/api/nv-elections` | Scraped Nevada election + important-date data |
+| POST | `/api/scrape/nc` | Scrapes North Carolina's election dates (via usvotefoundation.org) into Supabase |
+| GET | `/api/nc-elections` | Scraped North Carolina election + important-date data |
+| POST | `/api/scrape/fl` | Scrapes Florida's election dates (via usvotefoundation.org) into Supabase |
+| GET | `/api/fl-elections` | Scraped Florida election + important-date data |
 
 ## Roadmap
 

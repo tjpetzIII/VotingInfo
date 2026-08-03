@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 19 10">
+  <!-- North Carolina state flag: blue union with white star, red/white bars -->
+  <rect width="19" height="10" fill="#ffffff"/>
+  <rect y="0"   width="19" height="3.33" fill="#00205b"/>
+  <rect y="6.67" width="19" height="3.33" fill="#cc0000"/>
+  <rect width="6" height="10" fill="#00205b"/>
+  <path d="M3,3.6 l0.4,1.2 1.26,0 -1.02,0.74 0.39,1.2 -1.03,-0.75 -1.03,0.75 0.39,-1.2 -1.02,-0.74 1.26,0 Z" fill="#ffffff"/>
+</svg>

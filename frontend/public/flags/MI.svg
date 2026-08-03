@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 19 10">
+  <!-- Michigan state flag: azure field with a simplified gold coat-of-arms -->
+  <rect width="19" height="10" fill="#0057a8"/>
+  <path d="M9.5,2.2 L11,4.8 L9.5,4 L8,4.8 Z" fill="#f2b90c"/>
+  <ellipse cx="9.5" cy="6.4" rx="2.4" ry="1.6" fill="none" stroke="#f2b90c" stroke-width="0.25"/>
+  <text x="9.5" y="6.9" font-size="0.9" font-family="Georgia, serif" fill="#f2b90c" text-anchor="middle">MI</text>
+</svg>

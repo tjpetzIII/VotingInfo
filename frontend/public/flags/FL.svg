@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 19 10">
+  <!-- Florida state flag: red saltire on white with a central seal roundel -->
+  <rect width="19" height="10" fill="#ffffff"/>
+  <path d="M0,0 19,10M0,10 19,0" stroke="#d3242a" stroke-width="1.8"/>
+  <circle cx="9.5" cy="5" r="2" fill="#ffffff" stroke="#d3242a" stroke-width="0.1"/>
+  <circle cx="9.5" cy="5" r="1.1" fill="#f2b90c"/>
+</svg>

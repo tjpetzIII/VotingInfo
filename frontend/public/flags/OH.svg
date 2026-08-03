@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 19 10">
+  <!-- Ohio state flag (simplified, non-swallowtail rendering): red/white stripes
+       with the blue triangle and white "O" burgee from the real pennant -->
+  <rect width="19" height="10" fill="#ffffff"/>
+  <rect y="0"   width="19" height="2" fill="#c8102e"/>
+  <rect y="4"   width="19" height="2" fill="#c8102e"/>
+  <rect y="8"   width="19" height="2" fill="#c8102e"/>
+  <path d="M0,0 L8,5 L0,10 Z" fill="#0a3161"/>
+  <circle cx="3.2" cy="5" r="1.1" fill="#ffffff"/>
+  <circle cx="3.2" cy="5" r="0.5" fill="#c8102e"/>
+</svg>

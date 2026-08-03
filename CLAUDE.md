@@ -59,7 +59,7 @@ Next.js 16 App Router with React 19, TypeScript, and Tailwind CSS 3. Uses `next.
 - `src/app/polling/page.tsx` — address form showing polling locations on a map (`PollingMap`, dynamically imported with `ssr: false`) plus `PollingLocationCard` list
 - `src/app/dates/page.tsx` — address form showing the aggregated election-date timeline (`/api/elections/dates`), color-coded by category
 - `src/app/registration/page.tsx` — redirects to `/voter-info` (registration UI was merged into that page)
-- `src/app/registration-dates/page.tsx` — per-state cards (AK/AL/PA today) showing scraped election dates and important dates (`fetchAkElections`/`fetchAlElections`/`fetchPaElections`)
+- `src/app/registration-dates/page.tsx` — per-state cards (AK/AL/PA/WI/MI/OH/GA/AZ/NV/NC/FL today) showing scraped election dates and important dates via the shared `fetchStateElections(stateCode)` fetcher
 - `src/app/login/page.tsx` — Supabase email/password sign-in and sign-up form (`react-hook-form` + `zod`)
 - `src/app/auth/callback/route.ts` — Supabase email-confirmation callback; exchanges the `code` query param for a session, then redirects to `/`
 - `src/app/error.tsx` — global client error boundary
@@ -75,7 +75,7 @@ Next.js 16 App Router with React 19, TypeScript, and Tailwind CSS 3. Uses `next.
 - `src/lib/supabase/client.ts` — `createBrowserClient` from `@supabase/ssr`, for use in Client Components
 - `src/lib/supabase/server.ts` — `createServerClient` from `@supabase/ssr`, cookie-bound to the current request, for use in Server Components/route handlers
 - `src/messages/{en,es}.ts` — flat `id → string` message maps consumed by `react-intl`'s `IntlProvider`/`FormattedMessage`/`useIntl`
-- `src/lib/api.ts` — typed fetch wrappers with standardized error handling; exports `fetchAllElections`, `fetchVoterInfo`, `fetchElections`, `fetchBallot`, `fetchRegistration`, `fetchElectionDates`, `fetchPaElections`, `fetchAlElections`, `fetchAkElections`
+- `src/lib/api.ts` — typed fetch wrappers with standardized error handling; exports `fetchAllElections`, `fetchVoterInfo`, `fetchElections`, `fetchBallot`, `fetchRegistration`, `fetchElectionDates`, and `fetchStateElections(stateCode)` (shared by every per-state scraper page since VOT-52 — no more one fetcher per state)
 - `middleware.ts` (repo root of `frontend/`) — Next.js middleware that refreshes the Supabase session cookie on every request (excludes static assets)
 
 Address format sent to the backend: `"${street}, ${city}, ${state} ${zip}"` — Google's Civic API requires a full street address; city/state/zip alone returns a 400 parseError.
@@ -109,25 +109,37 @@ src/
                                     time (include_str!) into a state-abbreviation → registration-info lookup table,
                                     used as a fallback when the Civic API has no registration data for an address
   services/election_dates.rs     — get_election_dates(): aggregates Civic API election-day/registration-deadline
-                                    dates with scraped PA/AL/AK mail-in deadlines and "important dates" into one
+                                    dates with scraped state mail-in deadlines and "important dates" into one
                                     sorted timeline for GET /api/elections/dates
   services/{pa,al,ak}_scraper.rs — one scraper per state: fetches that state's official elections page(s) with
                                     reqwest, parses elections + important dates out of the HTML. The AL and AK
                                     scrapers each bundle a GlobalSign intermediate cert (`backend/certs/*.pem`,
                                     include_bytes!) into their reqwest::Client because those sites' TLS chains
                                     aren't trusted by the default distroless cert store
+  services/usvotefoundation.rs    — shared fetch+parse logic for U.S. Vote Foundation's per-state
+                                    "Election Dates and Deadlines" pages (usvotefoundation.org/{slug}-election-
+                                    dates-and-deadlines), used as a fallback source when a state's own official
+                                    site can't be scraped directly
+  services/{wi,mi,oh,ga,az,nv,nc,fl}_scraper.rs — one-line wrappers calling
+                                    `usvotefoundation::scrape(client, slug, code)`. WI/GA/AZ's official sites sit
+                                    behind a Cloudflare bot challenge that blocks a plain reqwest GET, and
+                                    NV/NC's official sites are sprawling portals with no single dedicated dates
+                                    page; all eight of these states are sourced from the U.S. Vote Foundation
+                                    aggregator instead of their own state sites, so unlike PA/AL/AK there is no
+                                    per-state parser to maintain for any of them
   services/supabase.rs            — SupabaseClient: thin wrapper over the Supabase PostgREST REST API
                                     (`upsert`/`fetch_all`); reads SUPABASE_URL/SUPABASE_KEY, returns
                                     AppError::Config if either is unset so the app still starts without Supabase
   routes/elections.rs             — GET /api/voter-info, /api/elections, /api/ballot, /api/all-elections,
                                     /api/registration, /api/elections/dates handlers
-  routes/scraper.rs               — POST /api/scrape/{pa,al,ak} (run the scraper, upsert into Supabase) and
-                                    GET /api/{pa,al,ak}-elections (read back scraped data) handlers
+  routes/scraper.rs               — POST /api/scrape/{state} (run the scraper, upsert into Supabase) and
+                                    GET /api/{state}-elections (read back scraped data) handlers, generic over
+                                    every entry in `STATE_SCRAPERS` (currently pa/al/ak/wi/mi/oh/ga/az/nv/nc/fl)
   bin/healthcheck.rs               — TCP connect binary used by Docker healthcheck
 data/                             — state_registration_urls.json (registration URL + same-day/online-registration
                                     flags per state) and state_registration_sources.md (citations), compiled into
                                     the binary
-migrations/                       — SQL migrations for the pa_elections/al_elections/ak_elections and matching
+migrations/                       — SQL migrations for the pa/al/ak/wi/mi/oh/ga/az/nv/nc/fl _elections and matching
                                     *_election_dates Supabase tables
 supabase/                         — Supabase CLI project config (local dev stack)
 ```
@@ -144,7 +156,7 @@ supabase/                         — Supabase CLI project config (local dev sta
 
 ### Data persistence
 
-Google Civic API responses are never persisted — they're only cached in-memory (see the five `moka` caches above) and re-fetched from Google after each cache's TTL expires. State-scraper output (PA/AL/AK election dates) is the only data that's actually persisted: `POST /api/scrape/{pa,al,ak}` scrapes a state's official site and `SupabaseClient::upsert`s the results into that state's `_elections`/`_election_dates` tables (`ON CONFLICT` merge via PostgREST's `?on_conflict=` + `Prefer: resolution=merge-duplicates`); `GET /api/{pa,al,ak}-elections` reads it back with `fetch_all`. `GET /api/elections/dates` reads from both worlds — live Civic API dates plus whatever's already been scraped into Supabase for that address's state — and merges them into one timeline (`services/election_dates.rs`). Nothing currently triggers `/api/scrape/*` on a schedule; it's invoked manually or by an external job runner.
+Google Civic API responses are never persisted — they're only cached in-memory (see the five `moka` caches above) and re-fetched from Google after each cache's TTL expires. State-scraper output (election dates for PA/AL/AK/WI/MI/OH/GA/AZ/NV/NC/FL) is the only data that's actually persisted: `POST /api/scrape/{state}` scrapes a state's site (its own official site for PA/AL/AK, the U.S. Vote Foundation aggregator for the other eight) and `SupabaseClient::upsert`s the results into that state's `_elections`/`_election_dates` tables (`ON CONFLICT` merge via PostgREST's `?on_conflict=` + `Prefer: resolution=merge-duplicates`); `GET /api/{state}-elections` reads it back with `fetch_all`. `GET /api/elections/dates` reads from both worlds — live Civic API dates plus whatever's already been scraped into Supabase for that address's state — and merges them into one timeline (`services/election_dates.rs`). Nothing currently triggers `/api/scrape/*` on a schedule; it's invoked manually or by an external job runner.
 
 ### Authentication
 
@@ -178,10 +190,26 @@ The frontend uses `react-intl`. `src/messages/en.ts` and `src/messages/es.ts` ex
 | GET    | `/api/ballot?address=`           | Returns `BallotResponse` JSON — contests sorted Federal → State → Local, full candidate details, empty fields omitted; federal candidates also carry the optional `campaign_finance` field described above |
 | GET    | `/api/all-elections`             | Returns `AllElectionsResponse` JSON (no address needed)                                                                 |
 | GET    | `/api/registration?address=`     | Returns `RegistrationResponse` JSON — Civic API registration info, falling back to static per-state data when unavailable |
-| GET    | `/api/elections/dates?address=`  | Returns `ElectionDatesResponse` JSON — Civic API dates merged with any scraped PA/AL/AK dates, sorted chronologically   |
+| GET    | `/api/elections/dates?address=`  | Returns `ElectionDatesResponse` JSON — Civic API dates merged with any scraped state dates, sorted chronologically |
 | POST   | `/api/scrape/pa`                 | Scrapes PA's official elections page, upserts into Supabase, returns `ScrapeResult` (counts saved)                      |
-| GET    | `/api/pa-elections`              | Returns `PaStateDataResponse` JSON — scraped PA elections + important dates from Supabase                              |
+| GET    | `/api/pa-elections`              | Returns `StateDataResponse` JSON — scraped PA elections + important dates from Supabase                                |
 | POST   | `/api/scrape/al`                 | Scrapes Alabama's official elections page, upserts into Supabase, returns `ScrapeResult`                                |
-| GET    | `/api/al-elections`              | Returns `AlStateDataResponse` JSON — scraped AL elections + important dates from Supabase                              |
+| GET    | `/api/al-elections`              | Returns `StateDataResponse` JSON — scraped AL elections + important dates from Supabase                                |
 | POST   | `/api/scrape/ak`                 | Scrapes Alaska's election-info and calendar pages, upserts into Supabase, returns `ScrapeResult`                        |
-| GET    | `/api/ak-elections`              | Returns `AkStateDataResponse` JSON — scraped AK elections + important dates from Supabase                              |
+| GET    | `/api/ak-elections`              | Returns `StateDataResponse` JSON — scraped AK elections + important dates from Supabase                                |
+| POST   | `/api/scrape/wi`                 | Scrapes Wisconsin election dates via usvotefoundation.org (WI's own sites block bot traffic), upserts into Supabase, returns `ScrapeResult` |
+| GET    | `/api/wi-elections`              | Returns `StateDataResponse` JSON — scraped WI elections + important dates from Supabase                                |
+| POST   | `/api/scrape/mi`                 | Scrapes Michigan election dates via usvotefoundation.org, upserts into Supabase, returns `ScrapeResult`                 |
+| GET    | `/api/mi-elections`              | Returns `StateDataResponse` JSON — scraped MI elections + important dates from Supabase                                |
+| POST   | `/api/scrape/oh`                 | Scrapes Ohio election dates via usvotefoundation.org, upserts into Supabase, returns `ScrapeResult`                     |
+| GET    | `/api/oh-elections`              | Returns `StateDataResponse` JSON — scraped OH elections + important dates from Supabase                                |
+| POST   | `/api/scrape/ga`                 | Scrapes Georgia election dates via usvotefoundation.org, upserts into Supabase, returns `ScrapeResult`                  |
+| GET    | `/api/ga-elections`              | Returns `StateDataResponse` JSON — scraped GA elections + important dates from Supabase                                |
+| POST   | `/api/scrape/az`                 | Scrapes Arizona election dates via usvotefoundation.org, upserts into Supabase, returns `ScrapeResult`                  |
+| GET    | `/api/az-elections`              | Returns `StateDataResponse` JSON — scraped AZ elections + important dates from Supabase                                |
+| POST   | `/api/scrape/nv`                 | Scrapes Nevada election dates via usvotefoundation.org, upserts into Supabase, returns `ScrapeResult`                   |
+| GET    | `/api/nv-elections`              | Returns `StateDataResponse` JSON — scraped NV elections + important dates from Supabase                                |
+| POST   | `/api/scrape/nc`                 | Scrapes North Carolina election dates via usvotefoundation.org, upserts into Supabase, returns `ScrapeResult`           |
+| GET    | `/api/nc-elections`              | Returns `StateDataResponse` JSON — scraped NC elections + important dates from Supabase                                |
+| POST   | `/api/scrape/fl`                 | Scrapes Florida election dates via usvotefoundation.org, upserts into Supabase, returns `ScrapeResult`                  |
+| GET    | `/api/fl-elections`              | Returns `StateDataResponse` JSON — scraped FL elections + important dates from Supabase                                |
