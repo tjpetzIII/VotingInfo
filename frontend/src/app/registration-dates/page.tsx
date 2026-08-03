@@ -2,12 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  fetchAkElections,
-  fetchAlElections,
-  fetchPaElections,
-  PaStateDataResponse,
-} from "@/lib/api";
+import { fetchStateElections, StateDataResponse } from "@/lib/api";
 // ---- State card data (add more states here later) ----
 // Flags live in /public/flags/<code>.svg
 const STATE_CARDS = [
@@ -15,16 +10,19 @@ const STATE_CARDS = [
     code: "AK",
     name: "Alaska",
     flag: "/flags/AK.svg",
+    sourceLabel: "elections.alaska.gov",
   },
   {
     code: "AL",
     name: "Alabama",
     flag: "/flags/AL.svg",
+    sourceLabel: "sos.alabama.gov",
   },
   {
     code: "PA",
     name: "Pennsylvania",
     flag: "/flags/PA.svg",
+    sourceLabel: "pa.gov",
   },
 ].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -36,7 +34,7 @@ function Modal({
   sourceLabel,
   onClose,
 }: {
-  data: PaStateDataResponse;
+  data: StateDataResponse;
   stateName: string;
   sourceLabel: string;
   onClose: () => void;
@@ -183,45 +181,17 @@ function Modal({
 
 export default function RegistrationDatesPage() {
   const [open, setOpen] = useState<string | null>(null);
+  const openState = STATE_CARDS.find((s) => s.code === open) ?? null;
 
-  const paQuery = useQuery({
-    queryKey: ["pa-elections"],
-    queryFn: fetchPaElections,
-    enabled: open === "PA",
+  const query = useQuery({
+    queryKey: ["state-elections", open],
+    queryFn: () => fetchStateElections(open as string),
+    enabled: openState !== null,
   });
 
-  const alQuery = useQuery({
-    queryKey: ["al-elections"],
-    queryFn: fetchAlElections,
-    enabled: open === "AL",
-  });
-
-  const akQuery = useQuery({
-    queryKey: ["ak-elections"],
-    queryFn: fetchAkElections,
-    enabled: open === "AK",
-  });
-
-  const active =
-    open === "PA"
-      ? {
-          query: paQuery,
-          stateName: "Pennsylvania",
-          sourceLabel: "pa.gov",
-        }
-      : open === "AL"
-      ? {
-          query: alQuery,
-          stateName: "Alabama",
-          sourceLabel: "sos.alabama.gov",
-        }
-      : open === "AK"
-      ? {
-          query: akQuery,
-          stateName: "Alaska",
-          sourceLabel: "elections.alaska.gov",
-        }
-      : null;
+  const active = openState
+    ? { query, stateName: openState.name, sourceLabel: openState.sourceLabel }
+    : null;
 
   const isLoading = active?.query.isLoading ?? false;
   const error = active?.query.error;

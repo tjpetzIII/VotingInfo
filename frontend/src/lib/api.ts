@@ -238,9 +238,13 @@ export async function fetchBallot(address: string): Promise<BallotResponse> {
   };
 }
 
-// --- PA state election dates ---
+// --- State election dates (PA/AL/AK/...) ---
+//
+// Shared by every per-state scraper page; `state_code` is the discriminator
+// instead of a dedicated type/fetcher per state. Mirrors the backend's
+// StateElection/StateImportantDate/StateDataResponse (models/mod.rs).
 
-export interface PaElection {
+export interface StateElection {
   id?: string;
   election_name: string;
   election_type: string;
@@ -251,7 +255,7 @@ export interface PaElection {
   state_code: string;
 }
 
-export interface PaImportantDate {
+export interface StateImportantDate {
   id?: string;
   event_date: string;
   event_description: string;
@@ -259,83 +263,13 @@ export interface PaImportantDate {
   state_code: string;
 }
 
-export interface PaStateDataResponse {
-  elections: PaElection[];
-  important_dates: PaImportantDate[];
+export interface StateDataResponse {
+  elections: StateElection[];
+  important_dates: StateImportantDate[];
 }
 
-export async function fetchPaElections(): Promise<PaStateDataResponse> {
-  const res = await fetch(`${API_BASE}/api/pa-elections`);
-  if (!res.ok) {
-    const json = await res.json().catch(() => ({}));
-    throw new Error((json as { error?: string }).error ?? `Error ${res.status}`);
-  }
-  return res.json();
-}
-
-// --- AL state election dates ---
-
-export interface AlElection {
-  id?: string;
-  election_name: string;
-  election_type: string;
-  election_date: string;
-  polls_hours?: string | null;
-  registration_deadline?: string | null;
-  mail_in_deadline?: string | null;
-  state_code: string;
-}
-
-export interface AlImportantDate {
-  id?: string;
-  event_date: string;
-  event_description: string;
-  election_year: number;
-  state_code: string;
-}
-
-export interface AlStateDataResponse {
-  elections: AlElection[];
-  important_dates: AlImportantDate[];
-}
-
-export async function fetchAlElections(): Promise<AlStateDataResponse> {
-  const res = await fetch(`${API_BASE}/api/al-elections`);
-  if (!res.ok) {
-    const json = await res.json().catch(() => ({}));
-    throw new Error((json as { error?: string }).error ?? `Error ${res.status}`);
-  }
-  return res.json();
-}
-
-// --- AK state election dates ---
-
-export interface AkElection {
-  id?: string;
-  election_name: string;
-  election_type: string;
-  election_date: string;
-  polls_hours?: string | null;
-  registration_deadline?: string | null;
-  mail_in_deadline?: string | null;
-  state_code: string;
-}
-
-export interface AkImportantDate {
-  id?: string;
-  event_date: string;
-  event_description: string;
-  election_year: number;
-  state_code: string;
-}
-
-export interface AkStateDataResponse {
-  elections: AkElection[];
-  important_dates: AkImportantDate[];
-}
-
-export async function fetchAkElections(): Promise<AkStateDataResponse> {
-  const res = await fetch(`${API_BASE}/api/ak-elections`);
+export async function fetchStateElections(stateCode: string): Promise<StateDataResponse> {
+  const res = await fetch(`${API_BASE}/api/${stateCode.toLowerCase()}-elections`);
   if (!res.ok) {
     const json = await res.json().catch(() => ({}));
     throw new Error((json as { error?: string }).error ?? `Error ${res.status}`);
