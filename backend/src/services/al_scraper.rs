@@ -182,4 +182,16 @@ mod tests {
     fn runoff_classified_as_primary() {
         assert_eq!(determine_type("2026 Primary Runoff Election"), "primary");
     }
+
+    #[test]
+    fn special_general_classified_as_special() {
+        // A name containing both "special" and "general" (e.g. FL's district
+        // races held on the general election's date) must not collide with
+        // the real general election under the (election_date, election_type)
+        // unique key.
+        assert_eq!(
+            determine_type("Florida State Senate District 21 Special General Election"),
+            "special"
+        );
+    }
 }

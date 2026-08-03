@@ -19,10 +19,15 @@ pub fn determine_type(election_name: &str) -> String {
     let lower = election_name.to_lowercase();
     if lower.contains("primary") {
         "primary".to_string()
+    } else if lower.contains("special") {
+        // Checked before "general": a "Special General Election" (e.g. FL's
+        // off-cycle district races held on the general's date) is a special
+        // election first — classifying it "general" would collide with the
+        // real general election on the same (election_date, election_type)
+        // unique key.
+        "special".to_string()
     } else if lower.contains("general") {
         "general".to_string()
-    } else if lower.contains("special") {
-        "special".to_string()
     } else {
         "other".to_string()
     }
@@ -83,6 +88,38 @@ fn scrape_ak(client: &Client) -> ScrapeFuture<'_> {
     Box::pin(super::ak_scraper::scrape(client))
 }
 
+fn scrape_wi(client: &Client) -> ScrapeFuture<'_> {
+    Box::pin(super::wi_scraper::scrape(client))
+}
+
+fn scrape_mi(client: &Client) -> ScrapeFuture<'_> {
+    Box::pin(super::mi_scraper::scrape(client))
+}
+
+fn scrape_oh(client: &Client) -> ScrapeFuture<'_> {
+    Box::pin(super::oh_scraper::scrape(client))
+}
+
+fn scrape_ga(client: &Client) -> ScrapeFuture<'_> {
+    Box::pin(super::ga_scraper::scrape(client))
+}
+
+fn scrape_az(client: &Client) -> ScrapeFuture<'_> {
+    Box::pin(super::az_scraper::scrape(client))
+}
+
+fn scrape_nv(client: &Client) -> ScrapeFuture<'_> {
+    Box::pin(super::nv_scraper::scrape(client))
+}
+
+fn scrape_nc(client: &Client) -> ScrapeFuture<'_> {
+    Box::pin(super::nc_scraper::scrape(client))
+}
+
+fn scrape_fl(client: &Client) -> ScrapeFuture<'_> {
+    Box::pin(super::fl_scraper::scrape(client))
+}
+
 /// Every state we have a scraper for. Route registration
 /// (`lib.rs::api_router`) and the election-dates aggregator
 /// (`election_dates.rs::augment_from_scraped_data`) both drive off this list.
@@ -90,4 +127,12 @@ pub static STATE_SCRAPERS: &[StateScraperConfig] = &[
     StateScraperConfig { state_code: "PA", scrape: scrape_pa },
     StateScraperConfig { state_code: "AL", scrape: scrape_al },
     StateScraperConfig { state_code: "AK", scrape: scrape_ak },
+    StateScraperConfig { state_code: "WI", scrape: scrape_wi },
+    StateScraperConfig { state_code: "MI", scrape: scrape_mi },
+    StateScraperConfig { state_code: "OH", scrape: scrape_oh },
+    StateScraperConfig { state_code: "GA", scrape: scrape_ga },
+    StateScraperConfig { state_code: "AZ", scrape: scrape_az },
+    StateScraperConfig { state_code: "NV", scrape: scrape_nv },
+    StateScraperConfig { state_code: "NC", scrape: scrape_nc },
+    StateScraperConfig { state_code: "FL", scrape: scrape_fl },
 ];

@@ -24,6 +24,54 @@ const STATE_CARDS = [
     flag: "/flags/PA.svg",
     sourceLabel: "pa.gov",
   },
+  {
+    code: "WI",
+    name: "Wisconsin",
+    flag: "/flags/WI.svg",
+    sourceLabel: "usvotefoundation.org",
+  },
+  {
+    code: "MI",
+    name: "Michigan",
+    flag: "/flags/MI.svg",
+    sourceLabel: "usvotefoundation.org",
+  },
+  {
+    code: "OH",
+    name: "Ohio",
+    flag: "/flags/OH.svg",
+    sourceLabel: "usvotefoundation.org",
+  },
+  {
+    code: "GA",
+    name: "Georgia",
+    flag: "/flags/GA.svg",
+    sourceLabel: "usvotefoundation.org",
+  },
+  {
+    code: "AZ",
+    name: "Arizona",
+    flag: "/flags/AZ.svg",
+    sourceLabel: "usvotefoundation.org",
+  },
+  {
+    code: "NV",
+    name: "Nevada",
+    flag: "/flags/NV.svg",
+    sourceLabel: "usvotefoundation.org",
+  },
+  {
+    code: "NC",
+    name: "North Carolina",
+    flag: "/flags/NC.svg",
+    sourceLabel: "usvotefoundation.org",
+  },
+  {
+    code: "FL",
+    name: "Florida",
+    flag: "/flags/FL.svg",
+    sourceLabel: "usvotefoundation.org",
+  },
 ].sort((a, b) => a.name.localeCompare(b.name));
 
 // ---- Modal ----
