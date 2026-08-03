@@ -2,11 +2,14 @@
 
 The Pennsylvania scraper is the reference implementation every new state scraper should mirror. This document summarizes the idioms so you don't need to reverse-engineer them every time.
 
+Since VOT-51, the models, route handlers, and `/api/elections/dates` aggregation are **state-agnostic** — they're generic over every entry in `STATE_SCRAPERS`. A new state only adds a scraper module plus a registry entry; it never touches `models/mod.rs`, `routes/scraper.rs`, `main.rs`/`lib.rs` route lines, or `election_dates.rs`.
+
 ## Files
 
-- `backend/src/services/pa_scraper.rs` — fetch + parse.
-- `backend/src/routes/scraper.rs` — Axum handlers (`scrape_pa`, `get_pa_data`).
-- `backend/src/models/mod.rs` — `PaElection`, `PaImportantDate`, `PaStateDataResponse`, `ScrapeResult`.
+- `backend/src/services/pa_scraper.rs` — fetch + parse. Returns the shared `ScrapedStateData`.
+- `backend/src/services/scraper_utils.rs` — shared `collect_text`/`determine_type`/`chrono_year_fallback` helpers, the `StateScraperConfig` registry entry type, and the `STATE_SCRAPERS` array that drives route registration.
+- `backend/src/routes/scraper.rs` — two generic Axum handlers (`scrape_state`, `get_state_data`) parameterized by a `&'static StateScraperConfig` — not one pair per state.
+- `backend/src/models/mod.rs` — shared `StateElection`, `StateImportantDate`, `StateDataResponse`, `ScrapedStateData`, `ScrapeResult` (all state-agnostic; `state_code` is the discriminator).
 - `backend/src/services/supabase.rs` — `SupabaseClient::upsert` / `fetch_all`.
 - `backend/migrations/001_pa_scraper.sql` — table schema + `set_scraped_at` trigger.
 - `backend/src/errors.rs` — `AppError::ScraperError(String)` variant.
@@ -65,47 +68,23 @@ if let Some(parent) = h2.parent().and_then(ElementRef::wrap) {
 
 `h2.parent()` returns a `NodeRef`; `ElementRef::wrap` lifts it back to an `ElementRef` so further `.select()` calls work.
 
-### `collect_text`
+### `collect_text`, `determine_type`, `chrono_year_fallback`
+
+All three live in `backend/src/services/scraper_utils.rs`. Import them — do not redefine:
 
 ```rust
-fn collect_text(el: &ElementRef) -> String {
-    el.text().collect::<Vec<_>>().join("").trim().to_string()
-}
+use crate::services::scraper_utils::{chrono_year_fallback, collect_text, determine_type};
 ```
 
-Copy this verbatim into each scraper module (or promote it to a shared `services::scrape_util` module if more than two scrapers need it).
-
-### `determine_type`
-
-```rust
-fn determine_type(election_name: &str) -> String {
-    let lower = election_name.to_lowercase();
-    if lower.contains("primary") { "primary".to_string() }
-    else if lower.contains("general") { "general".to_string() }
-    else if lower.contains("special") { "special".to_string() }
-    else { "other".to_string() }
-}
-```
-
-Four canonical values: `primary`, `general`, `special`, `other`. Keep them consistent so the frontend color map (`typeColors` in `registration-dates/page.tsx`) works across states.
-
-### Year fallback
-
-```rust
-fn chrono_year_fallback() -> i32 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let secs = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
-    1970 + (secs / 31_557_600) as i32
-}
-```
-
-Used when the page doesn't include an explicit year in its heading.
+`determine_type` maps to four canonical values: `primary`, `general`, `special`, `other`. Keep them consistent so the frontend color map (`typeColors` in `registration-dates/page.tsx`) works across states. `chrono_year_fallback` is used when the page doesn't include an explicit year in its heading.
 
 ## Data model
 
+Every state scraper returns the shared model from `backend/src/models/mod.rs` — do not define per-state structs:
+
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaElection {
+pub struct StateElection {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     pub election_name: String,
@@ -118,7 +97,7 @@ pub struct PaElection {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaImportantDate {
+pub struct StateImportantDate {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     pub event_date: String,
@@ -128,39 +107,35 @@ pub struct PaImportantDate {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaStateDataResponse {
-    pub elections: Vec<PaElection>,
-    pub important_dates: Vec<PaImportantDate>,
+pub struct StateDataResponse {
+    pub elections: Vec<StateElection>,
+    pub important_dates: Vec<StateImportantDate>,
+}
+
+pub struct ScrapedStateData {
+    pub elections: Vec<StateElection>,
+    pub important_dates: Vec<StateImportantDate>,
 }
 ```
 
-Mirror these struct shapes exactly for each new state — only the type names change. The frontend renders all of them with the same component, so consistency matters.
+`state_code` (e.g. `"PA"`) is the discriminator — the frontend renders every state with the same component, so consistency matters. Your new scraper's `parse_elections`/`parse_important_dates` should return `Vec<StateElection>`/`Vec<StateImportantDate>` directly; there is nothing to mirror or rename per state.
 
-## Handlers
+## Registry entry (replaces per-state handlers)
+
+There are no `scrape_pa`/`get_pa_data`-style handlers to write. `backend/src/routes/scraper.rs` has two generic handlers, `scrape_state`/`get_state_data`, each taking a `&'static StateScraperConfig`. Adding a state means adding one wrapper function and one array entry in `backend/src/services/scraper_utils.rs`:
 
 ```rust
-pub async fn scrape_pa(
-    State(supabase): State<Arc<SupabaseClient>>,
-) -> Result<Json<ScrapeResult>, AppError> {
-    let http = reqwest::Client::new();
-    let data = pa_scraper::scrape(&http).await?;
-    let elections_saved = data.elections.len();
-    let dates_saved = data.important_dates.len();
-    supabase.upsert("pa_elections", &data.elections).await?;
-    supabase.upsert("pa_election_dates", &data.important_dates).await?;
-    Ok(Json(ScrapeResult { elections_saved, dates_saved }))
+fn scrape_pa(client: &Client) -> ScrapeFuture<'_> {
+    Box::pin(super::pa_scraper::scrape(client))
 }
 
-pub async fn get_pa_data(
-    State(supabase): State<Arc<SupabaseClient>>,
-) -> Result<Json<PaStateDataResponse>, AppError> {
-    let elections = supabase.fetch_all("pa_elections", Some("election_date.asc")).await?;
-    let important_dates = supabase.fetch_all("pa_election_dates", None).await?;
-    Ok(Json(PaStateDataResponse { elections, important_dates }))
-}
+pub static STATE_SCRAPERS: &[StateScraperConfig] = &[
+    StateScraperConfig { state_code: "PA", scrape: scrape_pa },
+    // new states append here
+];
 ```
 
-Use the same `ScrapeResult` struct for every state's POST handler response — it's already defined in `models/mod.rs`.
+`backend/src/lib.rs::api_router` loops over `STATE_SCRAPERS` to register `/api/scrape/{state}` and `/api/{state}-elections` for every entry — no route lines to add by hand. `services/election_dates.rs::augment_from_scraped_data` looks up the same registry by `state_code`, so scraped mail-in deadlines and important dates are picked up automatically too.
 
 ## Migration
 
@@ -193,11 +168,4 @@ The `set_scraped_at` function already exists from migration `001`; you do **not*
 
 ## Routing
 
-`backend/src/main.rs` and `backend/src/lib.rs::build_app_router` each need two new lines per state:
-
-```rust
-.route("/api/scrape/{state_lower}", post(routes::scraper::scrape_{state_lower}))
-.route("/api/{state_lower}-elections", get(routes::scraper::get_{state_lower}_data))
-```
-
-Keep them grouped with the existing PA routes for readability.
+Nothing to add here. `backend/src/lib.rs::api_router` (used by both `main()` and the test-only `build_app_router`) loops over `scraper_utils::STATE_SCRAPERS` and registers `/api/scrape/{state}` + `/api/{state}-elections` for every entry. The registry entry you added in `scraper_utils.rs` is the only wiring step.

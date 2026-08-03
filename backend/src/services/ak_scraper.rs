@@ -1,9 +1,10 @@
 use reqwest::{Certificate, Client};
-use scraper::{ElementRef, Html, Selector};
+use scraper::{Html, Selector};
 
 use crate::{
     errors::AppError,
-    models::{AkElection, AkImportantDate},
+    models::{ScrapedStateData, StateElection, StateImportantDate},
+    services::scraper_utils::{chrono_year_fallback, collect_text, determine_type},
 };
 
 const AK_ELECTION_INFO_URL: &str =
@@ -29,16 +30,11 @@ fn build_client() -> Result<Client, AppError> {
         .map_err(|e| AppError::ScraperError(format!("build AK client: {e}")))
 }
 
-pub struct ScrapedAkData {
-    pub elections: Vec<AkElection>,
-    pub important_dates: Vec<AkImportantDate>,
-}
-
 /// Fetch and parse the Alaska election-information and calendar pages.
 ///
 /// The `_client` parameter is ignored — we build a dedicated client that
 /// trusts the bundled GlobalSign RSA OV SSL CA 2018 intermediate.
-pub async fn scrape(_client: &Client) -> Result<ScrapedAkData, AppError> {
+pub async fn scrape(_client: &Client) -> Result<ScrapedStateData, AppError> {
     let client = build_client()?;
 
     let election_html = client
@@ -86,7 +82,7 @@ pub async fn scrape(_client: &Client) -> Result<ScrapedAkData, AppError> {
     let election_doc = Html::parse_document(&election_html);
     let calendar_doc = Html::parse_document(&calendar_html);
 
-    Ok(ScrapedAkData {
+    Ok(ScrapedStateData {
         elections: parse_elections(&election_doc),
         important_dates: parse_important_dates(&calendar_doc),
     })
@@ -103,7 +99,7 @@ pub async fn scrape(_client: &Client) -> Result<ScrapedAkData, AppError> {
 ///
 /// We select every `<h4>` inside `.entry-content`, extract the election name
 /// from the `<strong>` child, and the date from the remaining text nodes.
-fn parse_elections(document: &Html) -> Vec<AkElection> {
+fn parse_elections(document: &Html) -> Vec<StateElection> {
     let h4_sel = Selector::parse(".entry-content h4").unwrap();
     let strong_sel = Selector::parse("strong").unwrap();
     let mut elections = Vec::new();
@@ -132,7 +128,7 @@ fn parse_elections(document: &Html) -> Vec<AkElection> {
             continue;
         }
 
-        elections.push(AkElection {
+        elections.push(StateElection {
             id: None,
             election_name: name.clone(),
             election_type: determine_type(&name),
@@ -152,7 +148,7 @@ fn parse_elections(document: &Html) -> Vec<AkElection> {
 /// The calendar page has a `<table class="with_frm_style …">` whose rows have
 /// four cells: Date (MM/DD/YYYY) | Event | Notes | Reference.  We store every
 /// row that has a non-empty date and event description.
-fn parse_important_dates(document: &Html) -> Vec<AkImportantDate> {
+fn parse_important_dates(document: &Html) -> Vec<StateImportantDate> {
     let table_sel = Selector::parse("table.with_frm_style").unwrap();
     let tr_sel = Selector::parse("tr").unwrap();
     let td_sel = Selector::parse("td").unwrap();
@@ -182,7 +178,7 @@ fn parse_important_dates(document: &Html) -> Vec<AkImportantDate> {
                     .and_then(|y| y.parse().ok())
                     .unwrap_or_else(chrono_year_fallback);
 
-                dates.push(AkImportantDate {
+                dates.push(StateImportantDate {
                     id: None,
                     event_date,
                     event_description,
@@ -199,24 +195,6 @@ fn parse_important_dates(document: &Html) -> Vec<AkImportantDate> {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/// Collect all text nodes within an element, joining them and trimming.
-fn collect_text(el: &ElementRef) -> String {
-    el.text().collect::<Vec<_>>().join("").trim().to_string()
-}
-
-fn determine_type(election_name: &str) -> String {
-    let lower = election_name.to_lowercase();
-    if lower.contains("primary") {
-        "primary".to_string()
-    } else if lower.contains("general") {
-        "general".to_string()
-    } else if lower.contains("special") {
-        "special".to_string()
-    } else {
-        "other".to_string()
-    }
-}
 
 /// Returns true if the string looks like a "Month DD, YYYY" date.
 fn looks_like_month_date(s: &str) -> bool {
@@ -235,14 +213,4 @@ fn looks_like_month_date(s: &str) -> bool {
         "December",
     ];
     MONTHS.iter().any(|m| s.contains(m))
-}
-
-/// Fallback year when the date can't be parsed — use the current year.
-fn chrono_year_fallback() -> i32 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    1970 + (secs / 31_557_600) as i32
 }

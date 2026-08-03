@@ -213,10 +213,13 @@ pub struct RegistrationResponse {
     pub election_officials: Vec<ElectionOfficial>,
 }
 
-// --- PA scraper types ---
+// --- State scraper types ---
+//
+// Shared by every per-state scraper (PA, AL, AK, ...); `state_code` is the
+// discriminator instead of a dedicated type per state.
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaElection {
+pub struct StateElection {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     pub election_name: String,
@@ -229,7 +232,7 @@ pub struct PaElection {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaImportantDate {
+pub struct StateImportantDate {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     pub event_date: String,
@@ -245,71 +248,15 @@ pub struct ScrapeResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaStateDataResponse {
-    pub elections: Vec<PaElection>,
-    pub important_dates: Vec<PaImportantDate>,
+pub struct StateDataResponse {
+    pub elections: Vec<StateElection>,
+    pub important_dates: Vec<StateImportantDate>,
 }
 
-// --- AL scraper types ---
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AlElection {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<String>,
-    pub election_name: String,
-    pub election_type: String,
-    pub election_date: String,
-    pub polls_hours: Option<String>,
-    pub registration_deadline: Option<String>,
-    pub mail_in_deadline: Option<String>,
-    pub state_code: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AlImportantDate {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<String>,
-    pub event_date: String,
-    pub event_description: String,
-    pub election_year: i32,
-    pub state_code: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AlStateDataResponse {
-    pub elections: Vec<AlElection>,
-    pub important_dates: Vec<AlImportantDate>,
-}
-
-// --- AK scraper types ---
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AkElection {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<String>,
-    pub election_name: String,
-    pub election_type: String,
-    pub election_date: String,
-    pub polls_hours: Option<String>,
-    pub registration_deadline: Option<String>,
-    pub mail_in_deadline: Option<String>,
-    pub state_code: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AkImportantDate {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<String>,
-    pub event_date: String,
-    pub event_description: String,
-    pub election_year: i32,
-    pub state_code: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AkStateDataResponse {
-    pub elections: Vec<AkElection>,
-    pub important_dates: Vec<AkImportantDate>,
+/// Result of scraping one state's elections page(s), before persistence.
+pub struct ScrapedStateData {
+    pub elections: Vec<StateElection>,
+    pub important_dates: Vec<StateImportantDate>,
 }
 
 // --- Election dates aggregation types ---

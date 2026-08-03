@@ -1,11 +1,9 @@
 use chrono::{Datelike, Local, NaiveDate};
 
 use crate::errors::AppError;
-use crate::models::{
-    AkElection, AkImportantDate, AlElection, AlImportantDate, ElectionDate, ElectionDatesResponse,
-    PaElection, PaImportantDate,
-};
+use crate::models::{ElectionDate, ElectionDatesResponse, StateElection, StateImportantDate};
 use crate::services::civic_api::{extract_state_from_address, CivicApiClient};
+use crate::services::scraper_utils::STATE_SCRAPERS;
 use crate::services::supabase::SupabaseClient;
 
 /// Aggregates every election-related date known for an address: election day and
@@ -65,92 +63,39 @@ async fn augment_from_scraped_data(
     today: NaiveDate,
     dates: &mut Vec<ElectionDate>,
 ) {
-    match state {
-        "PA" => {
-            if let Ok(elections) = supabase
-                .fetch_all::<PaElection>("pa_elections", Some("election_date.asc"))
-                .await
-            {
-                add_mail_in_deadline(
-                    dates,
-                    today,
-                    select_matching_election(
-                        elections
-                            .into_iter()
-                            .map(|e| (e.election_date, e.registration_deadline, e.mail_in_deadline)),
-                        election_day,
-                        today,
-                    ),
-                );
-            }
-            if let Ok(important) = supabase.fetch_all::<PaImportantDate>("pa_election_dates", None).await {
-                add_important_dates(
-                    dates,
-                    today,
-                    election_day,
-                    important
-                        .into_iter()
-                        .map(|d| (d.event_date, d.event_description, d.election_year)),
-                );
-            }
-        }
-        "AL" => {
-            if let Ok(elections) = supabase
-                .fetch_all::<AlElection>("al_elections", Some("election_date.asc"))
-                .await
-            {
-                add_mail_in_deadline(
-                    dates,
-                    today,
-                    select_matching_election(
-                        elections
-                            .into_iter()
-                            .map(|e| (e.election_date, e.registration_deadline, e.mail_in_deadline)),
-                        election_day,
-                        today,
-                    ),
-                );
-            }
-            if let Ok(important) = supabase.fetch_all::<AlImportantDate>("al_election_dates", None).await {
-                add_important_dates(
-                    dates,
-                    today,
-                    election_day,
-                    important
-                        .into_iter()
-                        .map(|d| (d.event_date, d.event_description, d.election_year)),
-                );
-            }
-        }
-        "AK" => {
-            if let Ok(elections) = supabase
-                .fetch_all::<AkElection>("ak_elections", Some("election_date.asc"))
-                .await
-            {
-                add_mail_in_deadline(
-                    dates,
-                    today,
-                    select_matching_election(
-                        elections
-                            .into_iter()
-                            .map(|e| (e.election_date, e.registration_deadline, e.mail_in_deadline)),
-                        election_day,
-                        today,
-                    ),
-                );
-            }
-            if let Ok(important) = supabase.fetch_all::<AkImportantDate>("ak_election_dates", None).await {
-                add_important_dates(
-                    dates,
-                    today,
-                    election_day,
-                    important
-                        .into_iter()
-                        .map(|d| (d.event_date, d.event_description, d.election_year)),
-                );
-            }
-        }
-        _ => {}
+    let Some(config) = STATE_SCRAPERS.iter().find(|c| c.state_code == state) else {
+        return;
+    };
+
+    if let Ok(elections) = supabase
+        .fetch_all::<StateElection>(&config.elections_table(), Some("election_date.asc"))
+        .await
+    {
+        add_mail_in_deadline(
+            dates,
+            today,
+            select_matching_election(
+                elections
+                    .into_iter()
+                    .map(|e| (e.election_date, e.registration_deadline, e.mail_in_deadline)),
+                election_day,
+                today,
+            ),
+        );
+    }
+
+    if let Ok(important) = supabase
+        .fetch_all::<StateImportantDate>(&config.dates_table(), None)
+        .await
+    {
+        add_important_dates(
+            dates,
+            today,
+            election_day,
+            important
+                .into_iter()
+                .map(|d| (d.event_date, d.event_description, d.election_year)),
+        );
     }
 }
 

@@ -6,10 +6,14 @@ pub mod services;
 
 use std::sync::Arc;
 
-use axum::{extract::FromRef, routing::get, Json, Router};
+use axum::{
+    extract::{FromRef, State},
+    routing::get,
+    Json, Router,
+};
 use serde_json::{json, Value};
 
-use services::{civic_api::CivicApiClient, supabase::SupabaseClient};
+use services::{civic_api::CivicApiClient, scraper_utils::STATE_SCRAPERS, supabase::SupabaseClient};
 
 /// Shared application state.
 #[derive(Clone)]
@@ -52,20 +56,38 @@ pub fn health_router() -> Router<AppState> {
 
 /// All `/api/*` routes. Single source of truth shared by `build_app_router`
 /// (tests) and `main` (production, which adds CORS/governor/logging layers).
+///
+/// The `/api/scrape/{state}` and `/api/{state}-elections` routes are
+/// generated from `scraper_utils::STATE_SCRAPERS` rather than hand-written
+/// per state — adding a state to that registry is enough to wire its routes.
 pub fn api_router() -> Router<AppState> {
-    Router::new()
+    let mut router = Router::new()
         .route("/api/voter-info", get(routes::elections::get_voter_info))
         .route("/api/elections", get(routes::elections::get_elections))
         .route("/api/ballot", get(routes::elections::get_ballot))
         .route("/api/all-elections", get(routes::elections::list_all_elections))
         .route("/api/registration", get(routes::elections::get_registration))
-        .route("/api/elections/dates", get(routes::elections::get_election_dates))
-        .route("/api/scrape/pa", axum::routing::post(routes::scraper::scrape_pa))
-        .route("/api/pa-elections", get(routes::scraper::get_pa_data))
-        .route("/api/scrape/al", axum::routing::post(routes::scraper::scrape_al))
-        .route("/api/al-elections", get(routes::scraper::get_al_data))
-        .route("/api/scrape/ak", axum::routing::post(routes::scraper::scrape_ak))
-        .route("/api/ak-elections", get(routes::scraper::get_ak_data))
+        .route("/api/elections/dates", get(routes::elections::get_election_dates));
+
+    for config in STATE_SCRAPERS {
+        let lower = config.lower();
+
+        router = router
+            .route(
+                &format!("/api/scrape/{lower}"),
+                axum::routing::post(move |State(supabase): State<Arc<SupabaseClient>>| async move {
+                    routes::scraper::scrape_state(supabase, config).await
+                }),
+            )
+            .route(
+                &format!("/api/{lower}-elections"),
+                get(move |State(supabase): State<Arc<SupabaseClient>>| async move {
+                    routes::scraper::get_state_data(supabase, config).await
+                }),
+            );
+    }
+
+    router
 }
 
 /// Builds the application router with all routes and state, without middleware layers.

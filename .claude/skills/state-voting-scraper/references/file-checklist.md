@@ -13,35 +13,20 @@ Use placeholders:
 
 ## Backend
 
-- [ ] `backend/src/services/{sl}_scraper.rs` — new file. Exports `pub async fn scrape(client: &reqwest::Client) -> Result<Scraped{Sp}Data, AppError>` and a `pub struct Scraped{Sp}Data { pub elections: Vec<{Sp}Election>, pub important_dates: Vec<{Sp}ImportantDate> }`. Private `parse_*` functions, private `collect_text`, `determine_type`, `chrono_year_fallback` helpers (copied from `pa_scraper.rs`). URL in a `const {SC}_URL: &str = "…";`. User-Agent `VoteReadyBot/1.0`.
+- [ ] `backend/src/services/{sl}_scraper.rs` — new file. Exports `pub async fn scrape(client: &reqwest::Client) -> Result<ScrapedStateData, AppError>` (the shared struct from `models/mod.rs` — do **not** define a per-state `Scraped{Sp}Data`). Private `parse_*` functions returning `Vec<StateElection>`/`Vec<StateImportantDate>` (also shared — do **not** define `{Sp}Election`/`{Sp}ImportantDate`). Import `collect_text`, `determine_type`, `chrono_year_fallback` from `crate::services::scraper_utils` — do **not** redefine them locally. URL in a `const {SC}_URL: &str = "…";`. User-Agent `VoteReadyBot/1.0`.
 
 - [ ] `backend/src/services/mod.rs` — add one line:
   ```rust
   pub mod {sl}_scraper;
   ```
 
-- [ ] `backend/src/models/mod.rs` — add three structs, `#[derive(Debug, Clone, Serialize, Deserialize)]` each:
+- [ ] `backend/src/services/scraper_utils.rs` — add a one-line wrapper and a registry entry:
   ```rust
-  pub struct {Sp}Election { /* id, election_name, election_type, election_date, polls_hours, registration_deadline, mail_in_deadline, state_code */ }
-  pub struct {Sp}ImportantDate { /* id, event_date, event_description, election_year, state_code */ }
-  pub struct {Sp}StateDataResponse { pub elections: Vec<{Sp}Election>, pub important_dates: Vec<{Sp}ImportantDate> }
+  fn scrape_{sl}(client: &Client) -> ScrapeFuture<'_> {
+      Box::pin(super::{sl}_scraper::scrape(client))
+  }
   ```
-  Mirror `PaElection`/`PaImportantDate` shape exactly (same field names, same `#[serde(skip_serializing_if = "Option::is_none")]` on `id`). Reuse the existing `ScrapeResult` — do not redefine it.
-
-- [ ] `backend/src/routes/scraper.rs` — add two handlers:
-  ```rust
-  pub async fn scrape_{sl}(State(supabase): State<Arc<SupabaseClient>>) -> Result<Json<ScrapeResult>, AppError> { … }
-  pub async fn get_{sl}_data(State(supabase): State<Arc<SupabaseClient>>) -> Result<Json<{Sp}StateDataResponse>, AppError> { … }
-  ```
-  Tables: `{sl}_elections`, `{sl}_election_dates`. Order `{sl}_elections` by `election_date.asc`.
-
-- [ ] `backend/src/main.rs` — inside the `api_routes` builder, add (next to the existing PA lines):
-  ```rust
-  .route("/api/scrape/{sl}", post(routes::scraper::scrape_{sl}))
-  .route("/api/{sl}-elections", get(routes::scraper::get_{sl}_data))
-  ```
-
-- [ ] `backend/src/lib.rs` — inside `build_app_router`, add the same two routes so tests keep working.
+  and add `StateScraperConfig { state_code: "{SC}", scrape: scrape_{sl} }` to the `STATE_SCRAPERS` array. This is the **only** registration step — it drives route wiring (`lib.rs::api_router`) and the `/api/elections/dates` scraped-data augmentation automatically. Do not touch `backend/src/models/mod.rs`, `backend/src/routes/scraper.rs`, `backend/src/main.rs`, `backend/src/lib.rs`, or `election_dates.rs` — those are state-agnostic since VOT-51.
 
 - [ ] `backend/migrations/00X_{sl}_scraper.sql` — new file, number = highest existing + 1. Two tables `{sl}_elections` and `{sl}_election_dates` with the same columns, unique constraints, and `DEFAULT '{SC}'` on `state_code`. Two `CREATE TRIGGER` statements calling the existing `set_scraped_at` function (do **not** redefine the function; it was created in `001`).
 
