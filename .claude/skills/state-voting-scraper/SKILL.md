@@ -1,6 +1,6 @@
 ---
 name: state-voting-scraper
-description: Scaffold a new state-level voting-information scraper for the votingApp backend. Use whenever the user provides a state elections or voter-info URL (e.g. sos.alabama.gov, michigan.gov/vote, sos.ca.gov) and asks to scrape, ingest, parse, or add support for that state's election dates / registration deadlines. Drives the site via Playwright MCP to inspect the live DOM, then generates a Rust scraper, models, route handlers, migration, and frontend wiring that mirror the existing PA scraper pattern.
+description: Scaffold a new state-level voting-information scraper for the votingApp backend. Use whenever the user provides a state elections or voter-info URL (e.g. sos.alabama.gov, michigan.gov/vote, sos.ca.gov) and asks to scrape, ingest, parse, or add support for that state's election dates / registration deadlines. Drives the site via Playwright MCP to inspect the live DOM, then generates a Rust scraper module, a `STATE_SCRAPERS` registry entry, a migration, and frontend wiring that mirror the existing PA scraper pattern — the shared models/route handlers/dates-aggregation added in VOT-51 need no per-state changes.
 tools: Read, Glob, Grep, Edit, Write, Bash, mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_evaluate, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_close
 ---
 
@@ -64,28 +64,24 @@ Before writing any code, read `references/pa-scraper-reference.md` and the files
 
 - `reqwest::Client` with `User-Agent: VoteReadyBot/1.0`.
 - `scraper::Html` + `Selector` for parsing.
-- `collect_text(&ElementRef)` helper for text extraction.
-- `determine_type(&str)` for classifying election names.
+- `collect_text(&ElementRef)`, `determine_type(&str)`, `chrono_year_fallback()` from `backend/src/services/scraper_utils.rs` — **do not redefine these** in the new scraper module, `use crate::services::scraper_utils::{collect_text, determine_type, chrono_year_fallback};` instead. VOT-51 consolidated these after they'd been copy-pasted verbatim into PA/AL/AK.
 - `AppError::ScraperError(String)` for parse failures — **always unwrap the full error source chain** into the message (`while let Some(s) = src.source() { msg.push_str(...) }`). Top-level reqwest errors like `"error sending request for url ..."` hide the actual cause (TLS, DNS, connection reset). Without the chain you cannot diagnose production failures.
-- Public function `pub async fn scrape(client: &Client) -> Result<Scraped{State}Data, AppError>`.
-- Data model with `Option<String>` fields for anything optional on the source page, and `state_code: String` hard-coded to the two-letter code.
+- Public function `pub async fn scrape(client: &Client) -> Result<ScrapedStateData, AppError>` — note the return type is the shared `ScrapedStateData` (from `backend/src/models/mod.rs`), not a per-state struct.
+- Elections/dates use the shared `StateElection`/`StateImportantDate` models with `Option<String>` fields for anything optional on the source page, and `state_code: String` hard-coded to the two-letter code — never define new `{State}Election`/`{State}ImportantDate` structs.
 
 ### Phase 3 — Generate code
 
 Follow `references/file-checklist.md` for the exact list of files. At a minimum:
 
-1. **`backend/src/services/{state_lower}_scraper.rs`** — new module. Mirror `pa_scraper.rs` structure: constants, `Scraped{StatePascal}Data` struct, `scrape(client)`, private `parse_elections` + `parse_important_dates`, then shared helpers via `super::pa_scraper` if reusable or copied locally. If Phase 1 step 6 found a broken TLS chain, also add a `build_client()` that loads a bundled intermediate via `reqwest::Certificate::from_pem` + `add_root_certificate` (see `references/tls-chain-fix.md`), and ignore the incoming `_client` parameter in favor of the dedicated client.
+1. **`backend/src/services/{state_lower}_scraper.rs`** — new module. Mirror `pa_scraper.rs` structure: constants, `scrape(client) -> Result<ScrapedStateData, AppError>`, private `parse_elections` + `parse_important_dates` returning `Vec<StateElection>`/`Vec<StateImportantDate>`, importing `collect_text`/`determine_type`/`chrono_year_fallback` from `scraper_utils` rather than redefining them. If Phase 1 step 6 found a broken TLS chain, also add a `build_client()` that loads a bundled intermediate via `reqwest::Certificate::from_pem` + `add_root_certificate` (see `references/tls-chain-fix.md`), and ignore the incoming `_client` parameter in favor of the dedicated client.
 2. **`backend/src/services/mod.rs`** — add `pub mod {state_lower}_scraper;`.
-3. **`backend/src/models/mod.rs`** — add `{StatePascal}Election`, `{StatePascal}ImportantDate`, `{StatePascal}StateDataResponse`. Copy the PA shape exactly so frontend rendering is uniform.
-4. **`backend/src/routes/scraper.rs`** — add `scrape_{state_lower}` and `get_{state_lower}_data` handlers. Table names: `{state_lower}_elections` and `{state_lower}_election_dates`.
-5. **`backend/src/main.rs`** — add `.route("/api/scrape/{state_lower}", post(routes::scraper::scrape_{state_lower}))` and `.route("/api/{state_lower}-elections", get(routes::scraper::get_{state_lower}_data))`.
-6. **`backend/src/lib.rs`** — add the same two routes to `build_app_router` so tests keep working.
-7. **`backend/migrations/00X_{state_lower}_scraper.sql`** — new migration, `X` = next number after the highest existing one. Tables `{state_lower}_elections` and `{state_lower}_election_dates` with identical columns and `UNIQUE` constraints to the PA migration, plus matching `set_scraped_at` triggers.
-8. **`frontend/src/lib/api.ts`** — export `{StatePascal}Election`, `{StatePascal}ImportantDate`, `{StatePascal}StateDataResponse` interfaces and `fetch{StatePascal}Elections()`.
-9. **`frontend/src/app/registration-dates/page.tsx`** — add the state to `STATE_CARDS` and wire a second `useQuery` + modal branch (or factor the existing modal into a reusable component first if adding many states).
-10. **`README.md`** — add `POST /api/scrape/{state_lower}` and `GET /api/{state_lower}-elections` to the API endpoint table.
+3. **`backend/src/services/scraper_utils.rs`** — add a one-line wrapper `fn scrape_{state_lower}(client: &Client) -> ScrapeFuture<'_> { Box::pin(super::{state_lower}_scraper::scrape(client)) }` and a `StateScraperConfig { state_code: "{SC}", scrape: scrape_{state_lower} }` entry in the `STATE_SCRAPERS` array. This alone wires up `/api/scrape/{state_lower}`, `/api/{state_lower}-elections`, and the `/api/elections/dates` scraped-data augmentation — no new route handlers, no new model structs, no new match arms.
+4. **`backend/migrations/00X_{state_lower}_scraper.sql`** — new migration, `X` = next number after the highest existing one. Tables `{state_lower}_elections` and `{state_lower}_election_dates` with identical columns and `UNIQUE` constraints to the PA migration, plus matching `set_scraped_at` triggers.
+5. **`frontend/src/lib/api.ts`** — export `{StatePascal}Election`, `{StatePascal}ImportantDate`, `{StatePascal}StateDataResponse` interfaces and `fetch{StatePascal}Elections()`. (The frontend still has one TS interface family per state — only the Rust backend was deduplicated in VOT-51 — so this step is unchanged.)
+6. **`frontend/src/app/registration-dates/page.tsx`** — add the state to `STATE_CARDS` and wire a second `useQuery` + modal branch (or factor the existing modal into a reusable component first if adding many states).
+7. **`README.md`** — add `POST /api/scrape/{state_lower}` and `GET /api/{state_lower}-elections` to the API endpoint table.
 
-Use existing types and helpers — do not redefine `SupabaseClient`, `AppError`, `collect_text`, etc.
+Do not add `backend/src/routes/scraper.rs` handlers, `backend/src/models/mod.rs` structs, `backend/src/main.rs`/`backend/src/lib.rs` route lines, or a match arm in `election_dates.rs` — the generic handlers and the `STATE_SCRAPERS` registry loop in `lib.rs::api_router` already cover every registered state. Use existing types and helpers — do not redefine `SupabaseClient`, `AppError`, `collect_text`, `StateElection`, etc.
 
 ### Phase 4 — Verify
 

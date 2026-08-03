@@ -3,7 +3,8 @@ use scraper::{ElementRef, Html, Selector};
 
 use crate::{
     errors::AppError,
-    models::{AlElection, AlImportantDate},
+    models::{ScrapedStateData, StateElection, StateImportantDate},
+    services::scraper_utils::{chrono_year_fallback, collect_text, determine_type},
 };
 
 const AL_ELECTIONS_URL: &str =
@@ -25,17 +26,12 @@ fn build_client() -> Result<Client, AppError> {
         .map_err(|e| AppError::ScraperError(format!("build AL client: {e}")))
 }
 
-pub struct ScrapedAlData {
-    pub elections: Vec<AlElection>,
-    pub important_dates: Vec<AlImportantDate>,
-}
-
 /// Fetch and parse the Alabama upcoming-elections page.
 ///
 /// The `_client` parameter is ignored; we build a dedicated client that
 /// trusts the bundled GlobalSign intermediate, since the AL server does not
 /// send the full chain and rustls does not perform AIA chasing.
-pub async fn scrape(_client: &Client) -> Result<ScrapedAlData, AppError> {
+pub async fn scrape(_client: &Client) -> Result<ScrapedStateData, AppError> {
     let client = build_client()?;
     let html = client
         .get(AL_ELECTIONS_URL)
@@ -60,7 +56,7 @@ pub async fn scrape(_client: &Client) -> Result<ScrapedAlData, AppError> {
 
     let document = Html::parse_document(&html);
     let (elections, important_dates) = parse_sections(&document);
-    Ok(ScrapedAlData { elections, important_dates })
+    Ok(ScrapedStateData { elections, important_dates })
 }
 
 // ---------------------------------------------------------------------------
@@ -71,12 +67,12 @@ pub async fn scrape(_client: &Client) -> Result<ScrapedAlData, AppError> {
 /// When we hit a `<table>`, classify it based on the active heading:
 ///   - "State Elections"            -> `AlElection` rows
 ///   - "Local Elections/Referendums" -> `AlImportantDate` rows
-fn parse_sections(document: &Html) -> (Vec<AlElection>, Vec<AlImportantDate>) {
+fn parse_sections(document: &Html) -> (Vec<StateElection>, Vec<StateImportantDate>) {
     let sel = Selector::parse("h2, table").unwrap();
 
     let mut current_heading: Option<String> = None;
-    let mut state_elections: Vec<AlElection> = Vec::new();
-    let mut local_dates: Vec<AlImportantDate> = Vec::new();
+    let mut state_elections: Vec<StateElection> = Vec::new();
+    let mut local_dates: Vec<StateImportantDate> = Vec::new();
     let election_year = chrono_year_fallback();
 
     for el in document.select(&sel) {
@@ -89,7 +85,7 @@ fn parse_sections(document: &Html) -> (Vec<AlElection>, Vec<AlImportantDate>) {
                 if heading.contains("State Elections") {
                     for (date, name) in parse_two_column_rows(&el) {
                         let election_type = determine_type(&name);
-                        state_elections.push(AlElection {
+                        state_elections.push(StateElection {
                             id: None,
                             election_name: name,
                             election_type,
@@ -102,7 +98,7 @@ fn parse_sections(document: &Html) -> (Vec<AlElection>, Vec<AlImportantDate>) {
                     }
                 } else if heading.contains("Local Elections") {
                     for (date, name) in parse_two_column_rows(&el) {
-                        local_dates.push(AlImportantDate {
+                        local_dates.push(StateImportantDate {
                             id: None,
                             event_date: date,
                             event_description: name,
@@ -132,38 +128,6 @@ fn parse_two_column_rows(table: &ElementRef) -> Vec<(String, String)> {
         }
     }
     rows
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/// Collect all text nodes within an element, joining them and trimming.
-fn collect_text(el: &ElementRef) -> String {
-    el.text().collect::<Vec<_>>().join("").trim().to_string()
-}
-
-fn determine_type(election_name: &str) -> String {
-    let lower = election_name.to_lowercase();
-    if lower.contains("primary") {
-        "primary".to_string()
-    } else if lower.contains("general") {
-        "general".to_string()
-    } else if lower.contains("special") {
-        "special".to_string()
-    } else {
-        "other".to_string()
-    }
-}
-
-/// Fallback year when the page doesn't explicitly state one — use the current year.
-fn chrono_year_fallback() -> i32 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    1970 + (secs / 31_557_600) as i32
 }
 
 #[cfg(test)]

@@ -5,5 +5,6 @@ pub mod election_dates;
 pub mod fec_api;
 pub mod geocoder;
 pub mod pa_scraper;
+pub mod scraper_utils;
 pub mod state_registration;
 pub mod supabase;

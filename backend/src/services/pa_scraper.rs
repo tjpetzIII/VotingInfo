@@ -3,19 +3,15 @@ use scraper::{ElementRef, Html, Selector};
 
 use crate::{
     errors::AppError,
-    models::{PaElection, PaImportantDate},
+    models::{ScrapedStateData, StateElection, StateImportantDate},
+    services::scraper_utils::{chrono_year_fallback, collect_text, determine_type},
 };
 
 const PA_ELECTIONS_URL: &str =
     "https://www.pa.gov/agencies/vote/elections/upcoming-elections";
 
-pub struct ScrapedPaData {
-    pub elections: Vec<PaElection>,
-    pub important_dates: Vec<PaImportantDate>,
-}
-
 /// Fetch and parse the PA upcoming-elections page.
-pub async fn scrape(client: &Client) -> Result<ScrapedPaData, AppError> {
+pub async fn scrape(client: &Client) -> Result<ScrapedStateData, AppError> {
     let html = client
         .get(PA_ELECTIONS_URL)
         .header(
@@ -31,7 +27,7 @@ pub async fn scrape(client: &Client) -> Result<ScrapedPaData, AppError> {
 
     let document = Html::parse_document(&html);
 
-    Ok(ScrapedPaData {
+    Ok(ScrapedStateData {
         elections: parse_elections(&document),
         important_dates: parse_important_dates(&document),
     })
@@ -41,7 +37,7 @@ pub async fn scrape(client: &Client) -> Result<ScrapedPaData, AppError> {
 // Internal parsers
 // ---------------------------------------------------------------------------
 
-fn parse_elections(document: &Html) -> Vec<PaElection> {
+fn parse_elections(document: &Html) -> Vec<StateElection> {
     let h2_sel = Selector::parse("h2").unwrap();
     let ul_sel = Selector::parse("ul").unwrap();
     let li_sel = Selector::parse("li").unwrap();
@@ -95,7 +91,7 @@ fn parse_elections(document: &Html) -> Vec<PaElection> {
             }
         }
 
-        elections.push(PaElection {
+        elections.push(StateElection {
             id: None,
             election_name,
             election_type,
@@ -110,7 +106,7 @@ fn parse_elections(document: &Html) -> Vec<PaElection> {
     elections
 }
 
-fn parse_important_dates(document: &Html) -> Vec<PaImportantDate> {
+fn parse_important_dates(document: &Html) -> Vec<StateImportantDate> {
     let h2_sel = Selector::parse("h2").unwrap();
     let table_sel = Selector::parse("table").unwrap();
     let tr_sel = Selector::parse("tr").unwrap();
@@ -142,7 +138,7 @@ fn parse_important_dates(document: &Html) -> Vec<PaImportantDate> {
                 .collect();
 
             if cells.len() >= 2 && !cells[0].is_empty() && !cells[1].is_empty() {
-                dates.push(PaImportantDate {
+                dates.push(StateImportantDate {
                     id: None,
                     event_date: cells[0].clone(),
                     event_description: cells[1].clone(),
@@ -154,37 +150,4 @@ fn parse_important_dates(document: &Html) -> Vec<PaImportantDate> {
     }
 
     dates
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/// Collect all text nodes within an element, joining them and trimming.
-fn collect_text(el: &ElementRef) -> String {
-    el.text().collect::<Vec<_>>().join("").trim().to_string()
-}
-
-fn determine_type(election_name: &str) -> String {
-    let lower = election_name.to_lowercase();
-    if lower.contains("primary") {
-        "primary".to_string()
-    } else if lower.contains("general") {
-        "general".to_string()
-    } else if lower.contains("special") {
-        "special".to_string()
-    } else {
-        "other".to_string()
-    }
-}
-
-/// Fallback year when the page heading can't be parsed — use the current year.
-fn chrono_year_fallback() -> i32 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    // Rough year from seconds since epoch (good enough for a fallback)
-    1970 + (secs / 31_557_600) as i32
 }
