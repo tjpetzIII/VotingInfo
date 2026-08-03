@@ -49,6 +49,24 @@ export interface Channel {
   id: string;
 }
 
+// --- Campaign finance (OpenFEC), VOT-60 ---
+// Only present for federal (President/Senate/House) candidates with a confident FEC match;
+// absent entirely otherwise — see specs/006-fec-campaign-finance/contracts/candidate-finance-field.md.
+
+export interface Contributor {
+  name: string;
+  total: number;
+}
+
+export interface CampaignFinanceSummary {
+  total_raised: number;
+  total_spent: number;
+  cash_on_hand: number;
+  /** ISO 8601 date string (YYYY-MM-DD) — the FEC filing's coverage end date. */
+  as_of_date: string;
+  top_contributors?: Contributor[];
+}
+
 export interface CandidateDetail {
   name: string;
   party: string | null;
@@ -57,6 +75,7 @@ export interface CandidateDetail {
   phone: string | null;
   email: string | null;
   channels: Channel[];
+  campaign_finance?: CampaignFinanceSummary;
 }
 
 export interface ContestDetail {
@@ -168,6 +187,7 @@ export interface BallotCandidate {
   phone: string | null;
   email: string | null;
   channels: Channel[];
+  campaign_finance?: CampaignFinanceSummary;
 }
 
 export interface BallotContest {

@@ -49,6 +49,12 @@ const messages: Record<MessageKey, string> = {
   "candidate.contactInfo": "Información de contacto",
   "candidate.phone": "Teléfono:",
   "candidate.email": "Correo:",
+  "candidate.campaignFinance": "Finanzas de la Campaña",
+  "candidate.totalRaised": "Total recaudado",
+  "candidate.totalSpent": "Total gastado",
+  "candidate.cashOnHand": "Efectivo disponible",
+  "candidate.financeAsOf": "Al {date}",
+  "candidate.topContributors": "Principales Contribuyentes",
 
   "ballot.title": "Boleta de Muestra",
   "ballot.subtitle":

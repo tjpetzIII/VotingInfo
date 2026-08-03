@@ -30,6 +30,12 @@ const CHANNEL_CONFIG: Record<
   },
 };
 
+const CURRENCY_FORMAT = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 0,
+});
+
 function partyBadgeClass(party: string | null): string {
   if (!party) return "bg-gray-100 text-gray-600";
   const p = party.toLowerCase();
@@ -117,6 +123,63 @@ export default function CandidateCard({ candidate }: { candidate: CandidateDetai
               </a>
             );
           })}
+        </div>
+      )}
+
+      {/* Campaign finance (OpenFEC) — federal candidates with a confident match only */}
+      {candidate.campaign_finance && (
+        <div className="border-t border-gray-100 pt-3">
+          <h4 className="text-sm font-medium text-gray-700">
+            <FormattedMessage id="candidate.campaignFinance" />
+          </h4>
+          <dl className="mt-2 grid grid-cols-3 gap-2 text-sm">
+            <div>
+              <dt className="text-xs text-gray-500">
+                {intl.formatMessage({ id: "candidate.totalRaised" })}
+              </dt>
+              <dd className="font-semibold text-gray-900">
+                {CURRENCY_FORMAT.format(candidate.campaign_finance.total_raised)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-gray-500">
+                {intl.formatMessage({ id: "candidate.totalSpent" })}
+              </dt>
+              <dd className="font-semibold text-gray-900">
+                {CURRENCY_FORMAT.format(candidate.campaign_finance.total_spent)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-gray-500">
+                {intl.formatMessage({ id: "candidate.cashOnHand" })}
+              </dt>
+              <dd className="font-semibold text-gray-900">
+                {CURRENCY_FORMAT.format(candidate.campaign_finance.cash_on_hand)}
+              </dd>
+            </div>
+          </dl>
+          <p className="mt-1 text-xs text-gray-400">
+            {intl.formatMessage(
+              { id: "candidate.financeAsOf" },
+              { date: candidate.campaign_finance.as_of_date }
+            )}
+          </p>
+          {candidate.campaign_finance.top_contributors &&
+            candidate.campaign_finance.top_contributors.length > 0 && (
+              <div className="mt-3">
+                <h5 className="text-xs font-medium text-gray-700">
+                  <FormattedMessage id="candidate.topContributors" />
+                </h5>
+                <ul className="mt-1 space-y-0.5 text-sm text-gray-600">
+                  {candidate.campaign_finance.top_contributors.map((c, i) => (
+                    <li key={i} className="flex justify-between gap-2">
+                      <span className="truncate">{c.name}</span>
+                      <span className="text-gray-500">{CURRENCY_FORMAT.format(c.total)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
         </div>
       )}
 

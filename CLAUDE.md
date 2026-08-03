@@ -96,8 +96,13 @@ src/
                                     RegistrationResponse, ElectionDate/ElectionDatesResponse, and the Pa/Al/Ak
                                     Election/ImportantDate/StateDataResponse scraper types
   services/civic_api.rs          — CivicApiClient: wraps reqwest + five moka caches (voter-info, elections,
-                                    all-elections, registration, ballot); owns a GeocoderClient and a
-                                    StateRegistrationService
+                                    all-elections, registration, ballot); owns a GeocoderClient, a
+                                    StateRegistrationService, and a FecApiClient (enriches federal candidates
+                                    on /api/elections and /api/ballot with campaign-finance data)
+  services/fec_api.rs             — FecApiClient: wraps reqwest + a 24h moka cache keyed by candidate (not
+                                    address) for the free OpenFEC API; matches federal (President/Senate/House)
+                                    candidates by name+state+office+cycle, failing closed to "no data" on any
+                                    ambiguous or missing match, and fetches totals + top contributors
   services/geocoder.rs           — GeocoderClient: geocodes polling-location addresses via Nominatim (OpenStreetMap),
                                     24h moka cache, requests serialized ≥1s apart per Nominatim usage policy
   services/state_registration.rs — StateRegistrationService: loads `data/state_registration_urls.json` at compile
@@ -158,7 +163,7 @@ The frontend uses `react-intl`. `src/messages/en.ts` and `src/messages/es.ts` ex
 
 ### Environment
 
-- `backend/.env` — `GOOGLE_CIVIC_API_KEY=your_api_key_here` (required; loaded via `dotenvy`); optionally `SUPABASE_URL` and `SUPABASE_KEY` (needed for the scraper/persistence routes and for `/api/elections/dates` to include scraped-state data — everything else works without them)
+- `backend/.env` — `GOOGLE_CIVIC_API_KEY=your_api_key_here` (required; loaded via `dotenvy`); optionally `SUPABASE_URL` and `SUPABASE_KEY` (needed for the scraper/persistence routes and for `/api/elections/dates` to include scraped-state data — everything else works without them); optionally `FEC_API_KEY` (raises the OpenFEC rate limit from the public `DEMO_KEY`'s ~40 req/hr to 1,000 req/hr — campaign-finance enrichment on `/api/elections`/`/api/ballot` works without it, just at the lower limit)
 - `frontend/.env.local` (not committed) — `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (required for auth; client/server Supabase helpers and `middleware.ts` read these, guarded to skip client construction during SSR/prerender when unset)
 - CORS allows `http://localhost:3000` only (hardcoded in `main.rs`)
 - In Docker Compose the frontend receives `NEXT_PUBLIC_API_URL=http://backend:8080`
@@ -169,8 +174,8 @@ The frontend uses `react-intl`. `src/messages/en.ts` and `src/messages/es.ts` ex
 | ------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | GET    | `/health`                        | `{"status":"ok"}`                                                                                                       |
 | GET    | `/api/voter-info?address=`       | Returns `VoterInfoResponse` JSON                                                                                        |
-| GET    | `/api/elections?address=`        | Returns `ElectionsResponse` JSON                                                                                        |
-| GET    | `/api/ballot?address=`           | Returns `BallotResponse` JSON — contests sorted Federal → State → Local, full candidate details, empty fields omitted   |
+| GET    | `/api/elections?address=`        | Returns `ElectionsResponse` JSON — federal candidates also carry an optional `campaign_finance` field (OpenFEC totals + top contributors) when a confident match is found |
+| GET    | `/api/ballot?address=`           | Returns `BallotResponse` JSON — contests sorted Federal → State → Local, full candidate details, empty fields omitted; federal candidates also carry the optional `campaign_finance` field described above |
 | GET    | `/api/all-elections`             | Returns `AllElectionsResponse` JSON (no address needed)                                                                 |
 | GET    | `/api/registration?address=`     | Returns `RegistrationResponse` JSON — Civic API registration info, falling back to static per-state data when unavailable |
 | GET    | `/api/elections/dates?address=`  | Returns `ElectionDatesResponse` JSON — Civic API dates merged with any scraped PA/AL/AK dates, sorted chronologically   |

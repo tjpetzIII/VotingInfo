@@ -12,6 +12,7 @@ use crate::models::{
     ElectionsResponse, PollingLocation, RegistrationAddress, RegistrationResponse,
     VoterInfoResponse,
 };
+use crate::services::fec_api::{FecApiClient, FinanceJob};
 use crate::services::geocoder::GeocoderClient;
 use crate::services::state_registration::StateRegistrationService;
 
@@ -188,32 +189,58 @@ pub struct CivicApiClient {
     ballot_cache: Cache<String, BallotResponse>,
     geocoder: GeocoderClient,
     state_registration: StateRegistrationService,
+    fec: FecApiClient,
 }
 
 impl CivicApiClient {
     pub fn new() -> Result<Self, AppError> {
         let api_key = env::var("GOOGLE_CIVIC_API_KEY")
             .map_err(|_| AppError::Config("GOOGLE_CIVIC_API_KEY".to_string()))?;
-        Ok(Self::build(api_key, CIVIC_API_BASE.to_string(), GeocoderClient::new()))
+        Ok(Self::build(
+            api_key,
+            CIVIC_API_BASE.to_string(),
+            GeocoderClient::new(),
+            FecApiClient::new(),
+        ))
     }
 
     /// Constructs a client pointing at a custom base URL. Used in tests to redirect
-    /// requests to a mock server instead of the real Google Civic API.
+    /// requests to a mock server instead of the real Google Civic API. The FEC client defaults
+    /// to the same mock server (which will 404 any FEC-shaped request it doesn't recognize) so
+    /// tests that don't care about campaign-finance data never make a real network call.
     pub fn new_with_base_url(api_key: &str, base_url: &str) -> Self {
-        Self::build(api_key.to_string(), base_url.to_string(), GeocoderClient::new())
+        Self::build(
+            api_key.to_string(),
+            base_url.to_string(),
+            GeocoderClient::new(),
+            FecApiClient::new_with_base_url("test_key", base_url),
+        )
     }
 
     /// Constructs a client with custom base URLs for both the Civic API and Nominatim.
-    /// Used in tests that also need to mock geocoding.
+    /// Used in tests that also need to mock geocoding. The FEC client defaults to the civic
+    /// mock server, same rationale as `new_with_base_url`.
     pub fn new_with_urls(api_key: &str, civic_base_url: &str, geocoder_base_url: &str) -> Self {
         Self::build(
             api_key.to_string(),
             civic_base_url.to_string(),
             GeocoderClient::new_with_base_url(geocoder_base_url),
+            FecApiClient::new_with_base_url("test_key", civic_base_url),
         )
     }
 
-    fn build(api_key: String, base_url: String, geocoder: GeocoderClient) -> Self {
+    /// Constructs a client with custom base URLs for both the Civic API and the FEC API. Used in
+    /// tests that need to mock campaign-finance scenarios (`/api/elections`, `/api/ballot`).
+    pub fn new_with_civic_and_fec_urls(api_key: &str, civic_base_url: &str, fec_base_url: &str) -> Self {
+        Self::build(
+            api_key.to_string(),
+            civic_base_url.to_string(),
+            GeocoderClient::new(),
+            FecApiClient::new_with_base_url("test_key", fec_base_url),
+        )
+    }
+
+    fn build(api_key: String, base_url: String, geocoder: GeocoderClient, fec: FecApiClient) -> Self {
         let cache = Cache::builder()
             .time_to_live(Duration::from_secs(15 * 60))
             .build();
@@ -245,6 +272,7 @@ impl CivicApiClient {
             ballot_cache,
             geocoder,
             state_registration: StateRegistrationService::load(),
+            fec,
         }
     }
 
@@ -275,7 +303,25 @@ impl CivicApiClient {
         }
 
         let raw = self.fetch_raw(address).await?;
-        let result = map_elections(raw);
+        // Computed from the raw contest fields (office/district.scope/level[]) before `raw` is
+        // consumed by `map_elections` below — `ContestDetail` itself doesn't retain those fields,
+        // only `office`, so this is the one point where federal/state/local can still be derived.
+        let federal_flags: Vec<bool> = raw
+            .contests
+            .iter()
+            .map(|c| {
+                let scope = c.district.as_ref().and_then(|d| d.scope.as_deref());
+                classify_level(c.office.as_deref(), scope, &c.level) == BallotLevel::Federal
+            })
+            .collect();
+        let election_day = raw.election.election_day.clone();
+        let mut result = map_elections(raw);
+
+        let state = extract_state_from_address(address);
+        let cycle = fec_cycle_for(&election_day);
+        self.attach_finance_to_election_contests(&mut result.contests, &federal_flags, state.as_deref(), cycle)
+            .await;
+
         self.elections_cache
             .insert(address.to_string(), result.clone())
             .await;
@@ -288,11 +334,102 @@ impl CivicApiClient {
         }
 
         let raw = self.fetch_raw(address).await?;
-        let result = map_ballot(raw);
+        let election_day = raw.election.election_day.clone();
+        let mut result = map_ballot(raw);
+
+        let state = extract_state_from_address(address);
+        let cycle = fec_cycle_for(&election_day);
+        self.attach_finance_to_ballot_contests(&mut result.contests, state.as_deref(), cycle)
+            .await;
+
         self.ballot_cache
             .insert(address.to_string(), result.clone())
             .await;
         Ok(result)
+    }
+
+    /// Enriches `/api/elections` candidates with campaign-finance data. Only attempts a lookup
+    /// for candidates in a Federal-classified contest (`federal_flags`, one entry per contest in
+    /// the same order) whose office title maps to a known FEC office code — this gates the FEC
+    /// call site itself, so no lookup is ever attempted for a state/local candidate (FR-002,
+    /// User Story 3), not merely discarded afterward.
+    async fn attach_finance_to_election_contests(
+        &self,
+        contests: &mut [ContestDetail],
+        federal_flags: &[bool],
+        state: Option<&str>,
+        cycle: u16,
+    ) {
+        let mut targets: Vec<(usize, usize)> = Vec::new();
+        let mut jobs: Vec<FinanceJob> = Vec::new();
+
+        for (ci, contest) in contests.iter().enumerate() {
+            if !federal_flags[ci] {
+                continue;
+            }
+            let Some(office_code) = fec_office_code(contest.office.as_deref()) else {
+                continue;
+            };
+            for (di, candidate) in contest.candidates.iter().enumerate() {
+                jobs.push(FinanceJob {
+                    index: targets.len(),
+                    name: candidate.name.clone(),
+                    office_code,
+                    state: candidate_state_for_office(office_code, state),
+                });
+                targets.push((ci, di));
+            }
+        }
+
+        if targets.is_empty() {
+            return;
+        }
+
+        for (job_index, finance) in self.fec.resolve_batch(cycle, jobs).await {
+            let (ci, di) = targets[job_index];
+            contests[ci].candidates[di].campaign_finance = finance;
+        }
+    }
+
+    /// Enriches `/api/ballot` candidates with campaign-finance data. Unlike the elections path,
+    /// `BallotContest` already carries a `level` field (set by `map_ballot`/`classify_level`), so
+    /// the Federal gate is checked directly rather than via a separately-computed flags list —
+    /// same gating guarantee as `attach_finance_to_election_contests` (FR-002, User Story 3).
+    async fn attach_finance_to_ballot_contests(
+        &self,
+        contests: &mut [BallotContest],
+        state: Option<&str>,
+        cycle: u16,
+    ) {
+        let mut targets: Vec<(usize, usize)> = Vec::new();
+        let mut jobs: Vec<FinanceJob> = Vec::new();
+
+        for (ci, contest) in contests.iter().enumerate() {
+            if contest.level != BallotLevel::Federal {
+                continue;
+            }
+            let Some(office_code) = fec_office_code(contest.office.as_deref()) else {
+                continue;
+            };
+            for (di, candidate) in contest.candidates.iter().enumerate() {
+                jobs.push(FinanceJob {
+                    index: targets.len(),
+                    name: candidate.name.clone(),
+                    office_code,
+                    state: candidate_state_for_office(office_code, state),
+                });
+                targets.push((ci, di));
+            }
+        }
+
+        if targets.is_empty() {
+            return;
+        }
+
+        for (job_index, finance) in self.fec.resolve_batch(cycle, jobs).await {
+            let (ci, di) = targets[job_index];
+            contests[ci].candidates[di].campaign_finance = finance;
+        }
     }
 
     pub async fn get_registration(&self, address: &str) -> Result<RegistrationResponse, AppError> {
@@ -515,6 +652,49 @@ pub(crate) fn extract_state_from_address(address: &str) -> Option<String> {
     None
 }
 
+/// Maps an office title to the FEC office code (`P`resident/`S`enate/`H`ouse). Returns `None`
+/// for anything that isn't clearly one of the three federal offices FEC tracks — this doubles as
+/// a second, stricter gate before ever attempting an FEC lookup (in addition to the
+/// Federal/State/Local classification already applied by the caller).
+fn fec_office_code(office: Option<&str>) -> Option<char> {
+    let title = office?.to_lowercase();
+    if title.contains("president") {
+        Some('P')
+    } else if title.contains("senat") {
+        Some('S')
+    } else if title.contains("representative") || title.contains("congress") || title.contains("house") {
+        Some('H')
+    } else {
+        None
+    }
+}
+
+/// The FEC two-year cycle for a given election day: FEC cycles are named by their even year
+/// (e.g. cycle "2026" covers calendar years 2025-2026), so an odd-year election day rolls up to
+/// the following even year.
+fn fec_cycle_for(election_day: &str) -> u16 {
+    let year: u16 = election_day
+        .get(0..4)
+        .and_then(|y| y.parse().ok())
+        .unwrap_or(0);
+    if year % 2 == 1 {
+        year + 1
+    } else {
+        year
+    }
+}
+
+/// Presidential candidates are a national race — an address-derived state filter would
+/// incorrectly exclude them from FEC's candidate search. Senate/House candidates are tied to a
+/// specific state, so the address's state is used to narrow the search.
+fn candidate_state_for_office(office_code: char, state: Option<&str>) -> Option<String> {
+    if office_code == 'P' {
+        None
+    } else {
+        state.map(|s| s.to_string())
+    }
+}
+
 /// Builds a `RegistrationResponse` from static fallback data when the Civic API
 /// has no election data for the given address.
 fn state_fallback_registration(
@@ -730,6 +910,7 @@ fn map_ballot(raw: ApiVoterInfoResponse) -> BallotResponse {
                                 id: ch.id,
                             })
                             .collect(),
+                        campaign_finance: None,
                     })
                     .collect(),
             }
@@ -790,6 +971,7 @@ fn map_elections(raw: ApiVoterInfoResponse) -> ElectionsResponse {
                                 id: ch.id,
                             })
                             .collect(),
+                        campaign_finance: None,
                     })
                     .collect(),
             })
