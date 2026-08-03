@@ -71,4 +71,65 @@ describe("CandidateCard", () => {
     renderCard({ ...BASE, candidate_url: null, channels: [] });
     expect(screen.queryByText("example.com/jane")).not.toBeInTheDocument();
   });
+
+  describe("campaign finance", () => {
+    it("renders nothing when campaign_finance is absent", () => {
+      renderCard(BASE);
+      expect(screen.queryByText("Campaign Finance")).not.toBeInTheDocument();
+    });
+
+    it("renders funding totals and the as-of date when campaign_finance is present", () => {
+      renderCard({
+        ...BASE,
+        campaign_finance: {
+          total_raised: 4200000,
+          total_spent: 3100000,
+          cash_on_hand: 1100000,
+          as_of_date: "2026-06-30",
+        },
+      });
+
+      expect(screen.getByText("Campaign Finance")).toBeInTheDocument();
+      expect(screen.getByText("$4,200,000")).toBeInTheDocument();
+      expect(screen.getByText("$3,100,000")).toBeInTheDocument();
+      expect(screen.getByText("$1,100,000")).toBeInTheDocument();
+      expect(screen.getByText("As of 2026-06-30")).toBeInTheDocument();
+    });
+
+    it("renders totals without a contributors section when top_contributors is absent", () => {
+      renderCard({
+        ...BASE,
+        campaign_finance: {
+          total_raised: 100,
+          total_spent: 50,
+          cash_on_hand: 50,
+          as_of_date: "2026-06-30",
+        },
+      });
+
+      expect(screen.getByText("Campaign Finance")).toBeInTheDocument();
+      expect(screen.queryByText("Top Contributors")).not.toBeInTheDocument();
+    });
+
+    it("renders the top contributors list when present", () => {
+      renderCard({
+        ...BASE,
+        campaign_finance: {
+          total_raised: 100,
+          total_spent: 50,
+          cash_on_hand: 50,
+          as_of_date: "2026-06-30",
+          top_contributors: [
+            { name: "Acme Corp", total: 58200 },
+            { name: "Example University", total: 41500 },
+          ],
+        },
+      });
+
+      expect(screen.getByText("Top Contributors")).toBeInTheDocument();
+      expect(screen.getByText("Acme Corp")).toBeInTheDocument();
+      expect(screen.getByText("$58,200")).toBeInTheDocument();
+      expect(screen.getByText("Example University")).toBeInTheDocument();
+    });
+  });
 });

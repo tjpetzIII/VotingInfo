@@ -47,6 +47,12 @@ const messages = {
   "candidate.contactInfo": "Contact info",
   "candidate.phone": "Phone:",
   "candidate.email": "Email:",
+  "candidate.campaignFinance": "Campaign Finance",
+  "candidate.totalRaised": "Total raised",
+  "candidate.totalSpent": "Total spent",
+  "candidate.cashOnHand": "Cash on hand",
+  "candidate.financeAsOf": "As of {date}",
+  "candidate.topContributors": "Top Contributors",
 
   "ballot.title": "Sample Ballot",
   "ballot.subtitle": "Enter your address to see your full ballot, grouped by level.",

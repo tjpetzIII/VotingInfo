@@ -69,6 +69,27 @@ pub struct CandidateDetail {
     pub phone: Option<String>,
     pub email: Option<String>,
     pub channels: Vec<Channel>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub campaign_finance: Option<CampaignFinanceSummary>,
+}
+
+// --- Campaign finance (OpenFEC) types ---
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Contributor {
+    pub name: String,
+    pub total: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CampaignFinanceSummary {
+    pub total_raised: f64,
+    pub total_spent: f64,
+    pub cash_on_hand: f64,
+    /// ISO 8601 date string (YYYY-MM-DD) — the FEC filing's coverage end date.
+    pub as_of_date: String,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub top_contributors: Vec<Contributor>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -110,6 +131,8 @@ pub struct BallotCandidate {
     pub email: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub channels: Vec<Channel>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub campaign_finance: Option<CampaignFinanceSummary>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -380,13 +403,40 @@ mod tests {
             phone: None,
             email: None,
             channels: vec![],
+            campaign_finance: None,
         };
         let json = serde_json::to_value(&candidate).unwrap();
         let obj = json.as_object().unwrap();
         assert_eq!(obj["name"], "John Doe");
-        for field in ["party", "candidate_url", "photo_url", "phone", "email", "channels"] {
+        for field in [
+            "party",
+            "candidate_url",
+            "photo_url",
+            "phone",
+            "email",
+            "channels",
+            "campaign_finance",
+        ] {
             assert!(!obj.contains_key(field), "expected `{field}` to be absent");
         }
+    }
+
+    #[test]
+    fn campaign_finance_summary_omits_empty_top_contributors() {
+        let summary = CampaignFinanceSummary {
+            total_raised: 100.0,
+            total_spent: 50.0,
+            cash_on_hand: 50.0,
+            as_of_date: "2026-06-30".into(),
+            top_contributors: vec![],
+        };
+        let json = serde_json::to_value(&summary).unwrap();
+        let obj = json.as_object().unwrap();
+        assert_eq!(obj["total_raised"], 100.0);
+        assert!(
+            !obj.contains_key("top_contributors"),
+            "expected `top_contributors` to be absent when empty"
+        );
     }
 
     #[test]

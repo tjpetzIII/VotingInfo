@@ -23,6 +23,12 @@ fn make_app_with_geocoder(civic_mock: &MockServer, geocoder_mock: &MockServer) -
     build_app_router(Arc::new(client))
 }
 
+fn make_app_with_fec(civic_mock: &MockServer, fec_mock: &MockServer) -> axum::Router {
+    let client =
+        CivicApiClient::new_with_civic_and_fec_urls("test_key", &civic_mock.uri(), &fec_mock.uri());
+    build_app_router(Arc::new(client))
+}
+
 async fn body_json(body: Body) -> Value {
     let bytes = body.collect().await.unwrap().to_bytes();
     serde_json::from_slice(&bytes).unwrap()
@@ -1116,4 +1122,438 @@ async fn ballot_empty_contests_returns_success() {
     assert_eq!(response.status(), StatusCode::OK);
     let json = body_json(response.into_body()).await;
     assert_eq!(json["contests"].as_array().unwrap().len(), 0);
+}
+
+// ---------------------------------------------------------------------------
+// Campaign finance (OpenFEC) — GET /api/elections and GET /api/ballot
+// ---------------------------------------------------------------------------
+
+const FEC_CANDIDATE_ID: &str = "S6IL00170";
+const FEC_PRESIDENT_CANDIDATE_ID: &str = "P00003392";
+
+fn elections_voter_info_federal() -> Value {
+    json!({
+        "election": { "id": "9001", "name": "General Election", "electionDay": "2026-11-03" },
+        "contests": [
+            {
+                "office": "United States Senator",
+                "district": { "scope": "statewide" },
+                "candidates": [{ "name": "Jane Q. Doe", "party": "Test Party" }]
+            }
+        ]
+    })
+}
+
+fn elections_voter_info_mixed_levels() -> Value {
+    json!({
+        "election": { "id": "9001", "name": "General Election", "electionDay": "2026-11-03" },
+        "contests": [
+            {
+                "office": "United States Senator",
+                "district": { "scope": "statewide" },
+                "candidates": [{ "name": "Jane Q. Doe", "party": "Test Party" }]
+            },
+            {
+                "office": "Governor",
+                "district": { "scope": "statewide" },
+                "candidates": [{ "name": "Sam Rivera", "party": "Other Party" }]
+            }
+        ]
+    })
+}
+
+fn fec_search_response(candidate_id: &str, name: &str) -> Value {
+    json!({ "results": [{ "candidate_id": candidate_id, "name": name }] })
+}
+
+fn fec_search_response_empty() -> Value {
+    json!({ "results": [] })
+}
+
+fn fec_totals_response() -> Value {
+    json!({
+        "results": [{
+            "receipts": 4200000.5,
+            "disbursements": 3100000.0,
+            "cash_on_hand_end_period": 1100000.5,
+            "coverage_end_date": "2026-06-30"
+        }]
+    })
+}
+
+fn fec_committees_response() -> Value {
+    json!({ "results": [{ "committee_id": "C00401224", "designation": "P" }] })
+}
+
+fn fec_by_employer_response() -> Value {
+    json!({
+        "results": [
+            { "employer": "Acme Corp", "total": 58200.0 },
+            { "employer": "Example University", "total": 41500.0 }
+        ]
+    })
+}
+
+fn fec_by_employer_response_empty() -> Value {
+    json!({ "results": [] })
+}
+
+/// Mounts the full FEC mock chain (search → totals → committees → by_employer) for one
+/// candidate_id, so a test only needs to specify what varies (the contributors payload).
+async fn mount_fec_confident_match(
+    fec_mock: &MockServer,
+    candidate_id: &str,
+    candidate_name: &str,
+    contributors: Value,
+) {
+    Mock::given(method("GET"))
+        .and(path("/candidates/search/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(fec_search_response(candidate_id, candidate_name)))
+        .mount(fec_mock)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(format!("/candidate/{candidate_id}/totals/")))
+        .respond_with(ResponseTemplate::new(200).set_body_json(fec_totals_response()))
+        .mount(fec_mock)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(format!("/candidate/{candidate_id}/committees/")))
+        .respond_with(ResponseTemplate::new(200).set_body_json(fec_committees_response()))
+        .mount(fec_mock)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/schedules/schedule_a/by_employer/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(contributors))
+        .mount(fec_mock)
+        .await;
+}
+
+#[tokio::test]
+async fn elections_federal_candidate_confident_match_shows_totals() {
+    let civic_mock = MockServer::start().await;
+    let fec_mock = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(elections_voter_info_federal()))
+        .mount(&civic_mock)
+        .await;
+    mount_fec_confident_match(
+        &fec_mock,
+        FEC_CANDIDATE_ID,
+        "Jane Q. Doe",
+        fec_by_employer_response_empty(),
+    )
+    .await;
+
+    let response = make_app_with_fec(&civic_mock, &fec_mock)
+        .oneshot(get("/api/elections?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    let cf = &json["contests"][0]["candidates"][0]["campaign_finance"];
+    assert_eq!(cf["total_raised"], 4200000.5);
+    assert_eq!(cf["total_spent"], 3100000.0);
+    assert_eq!(cf["cash_on_hand"], 1100000.5);
+    assert_eq!(cf["as_of_date"], "2026-06-30");
+}
+
+#[tokio::test]
+async fn ballot_federal_candidate_confident_match_shows_totals() {
+    let civic_mock = MockServer::start().await;
+    let fec_mock = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(ballot_voter_info_multi_level()))
+        .mount(&civic_mock)
+        .await;
+    // ballot_voter_info_multi_level's federal contest is "President of the United States"
+    // with candidates "Jane Smith" and "John Doe" — only Jane Smith is mocked as a confident
+    // match here; John Doe hits the unmocked FEC search (404) and is covered by the
+    // zero-match test below.
+    mount_fec_confident_match(
+        &fec_mock,
+        FEC_PRESIDENT_CANDIDATE_ID,
+        "Jane Smith",
+        fec_by_employer_response_empty(),
+    )
+    .await;
+
+    let response = make_app_with_fec(&civic_mock, &fec_mock)
+        .oneshot(get("/api/ballot?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    let federal_contest = json["contests"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["level"] == "federal")
+        .unwrap();
+    let jane = federal_contest["candidates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["name"] == "Jane Smith")
+        .unwrap();
+    assert_eq!(jane["campaign_finance"]["total_raised"], 4200000.5);
+    assert_eq!(jane["campaign_finance"]["as_of_date"], "2026-06-30");
+}
+
+#[tokio::test]
+async fn elections_federal_candidate_zero_fec_results_omits_field() {
+    let civic_mock = MockServer::start().await;
+    let fec_mock = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(elections_voter_info_federal()))
+        .mount(&civic_mock)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/candidates/search/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(fec_search_response_empty()))
+        .mount(&fec_mock)
+        .await;
+
+    let response = make_app_with_fec(&civic_mock, &fec_mock)
+        .oneshot(get("/api/elections?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    let candidate = json["contests"][0]["candidates"][0].as_object().unwrap();
+    assert_eq!(candidate["name"], "Jane Q. Doe");
+    assert!(
+        !candidate.contains_key("campaign_finance"),
+        "expected `campaign_finance` to be absent on a zero-match candidate"
+    );
+}
+
+#[tokio::test]
+async fn elections_fec_service_error_omits_field_without_failing_the_request() {
+    let civic_mock = MockServer::start().await;
+    let fec_mock = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(elections_voter_info_federal()))
+        .mount(&civic_mock)
+        .await;
+    // FEC search endpoint itself is erroring (not just "no match") — must still fail closed.
+    Mock::given(method("GET"))
+        .and(path("/candidates/search/"))
+        .respond_with(ResponseTemplate::new(500))
+        .mount(&fec_mock)
+        .await;
+
+    let response = make_app_with_fec(&civic_mock, &fec_mock)
+        .oneshot(get("/api/elections?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    let candidate = json["contests"][0]["candidates"][0].as_object().unwrap();
+    assert_eq!(candidate["name"], "Jane Q. Doe");
+    assert!(!candidate.contains_key("campaign_finance"));
+}
+
+#[tokio::test]
+async fn elections_federal_candidate_with_contributors_shows_top_contributors() {
+    let civic_mock = MockServer::start().await;
+    let fec_mock = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(elections_voter_info_federal()))
+        .mount(&civic_mock)
+        .await;
+    mount_fec_confident_match(&fec_mock, FEC_CANDIDATE_ID, "Jane Q. Doe", fec_by_employer_response()).await;
+
+    let response = make_app_with_fec(&civic_mock, &fec_mock)
+        .oneshot(get("/api/elections?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    let contributors = json["contests"][0]["candidates"][0]["campaign_finance"]["top_contributors"]
+        .as_array()
+        .unwrap();
+    assert_eq!(contributors.len(), 2);
+    assert_eq!(contributors[0]["name"], "Acme Corp");
+    assert_eq!(contributors[0]["total"], 58200.0);
+    assert_eq!(contributors[1]["name"], "Example University");
+}
+
+#[tokio::test]
+async fn ballot_federal_candidate_with_contributors_shows_top_contributors() {
+    let civic_mock = MockServer::start().await;
+    let fec_mock = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(ballot_voter_info_multi_level()))
+        .mount(&civic_mock)
+        .await;
+    mount_fec_confident_match(
+        &fec_mock,
+        FEC_PRESIDENT_CANDIDATE_ID,
+        "Jane Smith",
+        fec_by_employer_response(),
+    )
+    .await;
+
+    let response = make_app_with_fec(&civic_mock, &fec_mock)
+        .oneshot(get("/api/ballot?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    let json = body_json(response.into_body()).await;
+    let federal_contest = json["contests"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["level"] == "federal")
+        .unwrap();
+    let jane = federal_contest["candidates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["name"] == "Jane Smith")
+        .unwrap();
+    let contributors = jane["campaign_finance"]["top_contributors"].as_array().unwrap();
+    assert_eq!(contributors.len(), 2);
+    assert_eq!(contributors[0]["name"], "Acme Corp");
+}
+
+#[tokio::test]
+async fn elections_federal_candidate_no_contributor_data_omits_key_not_empty_array() {
+    let civic_mock = MockServer::start().await;
+    let fec_mock = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(elections_voter_info_federal()))
+        .mount(&civic_mock)
+        .await;
+    mount_fec_confident_match(
+        &fec_mock,
+        FEC_CANDIDATE_ID,
+        "Jane Q. Doe",
+        fec_by_employer_response_empty(),
+    )
+    .await;
+
+    let response = make_app_with_fec(&civic_mock, &fec_mock)
+        .oneshot(get("/api/elections?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    let json = body_json(response.into_body()).await;
+    let cf = json["contests"][0]["candidates"][0]["campaign_finance"]
+        .as_object()
+        .unwrap();
+    assert_eq!(cf["total_raised"], 4200000.5, "totals must still be present");
+    assert!(
+        !cf.contains_key("top_contributors"),
+        "expected `top_contributors` key to be absent entirely, not an empty array"
+    );
+}
+
+#[tokio::test]
+async fn elections_only_calls_fec_for_federal_candidates_not_state_or_local() {
+    let civic_mock = MockServer::start().await;
+    let fec_mock = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(elections_voter_info_mixed_levels()))
+        .mount(&civic_mock)
+        .await;
+    // `.expect(1)` is the guardrail: if the state-level "Sam Rivera" candidate ever triggered
+    // an FEC lookup, this would be called twice and wiremock would panic on drop.
+    Mock::given(method("GET"))
+        .and(path("/candidates/search/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(fec_search_response(FEC_CANDIDATE_ID, "Jane Q. Doe")))
+        .expect(1)
+        .mount(&fec_mock)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(format!("/candidate/{FEC_CANDIDATE_ID}/totals/")))
+        .respond_with(ResponseTemplate::new(200).set_body_json(fec_totals_response()))
+        .mount(&fec_mock)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(format!("/candidate/{FEC_CANDIDATE_ID}/committees/")))
+        .respond_with(ResponseTemplate::new(200).set_body_json(fec_committees_response()))
+        .mount(&fec_mock)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/schedules/schedule_a/by_employer/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(fec_by_employer_response_empty()))
+        .mount(&fec_mock)
+        .await;
+
+    let response = make_app_with_fec(&civic_mock, &fec_mock)
+        .oneshot(get("/api/elections?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    let contests = json["contests"].as_array().unwrap();
+    let federal_candidate = &contests[0]["candidates"][0];
+    let state_candidate = &contests[1]["candidates"][0];
+    assert_eq!(state_candidate["name"], "Sam Rivera");
+    assert!(federal_candidate.get("campaign_finance").is_some());
+    assert!(state_candidate.get("campaign_finance").is_none());
+    // wiremock verifies the `.expect(1)` on `/candidates/search/` when `fec_mock` drops at the
+    // end of this test — proving the state candidate never triggered a lookup at all.
+}
+
+#[tokio::test]
+async fn ballot_only_calls_fec_for_federal_candidates_not_state_or_local() {
+    let civic_mock = MockServer::start().await;
+    let fec_mock = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(ballot_voter_info_multi_level()))
+        .mount(&civic_mock)
+        .await;
+    // ballot_voter_info_multi_level has one federal contest (2 candidates: Jane Smith, John Doe)
+    // plus a state (Governor) and local (City Council) contest. Both federal candidates search,
+    // so `.expect(2)` — if either non-federal candidate also searched, this would be 3+ and
+    // wiremock would panic on drop.
+    Mock::given(method("GET"))
+        .and(path("/candidates/search/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(fec_search_response_empty()))
+        .expect(2)
+        .mount(&fec_mock)
+        .await;
+
+    let response = make_app_with_fec(&civic_mock, &fec_mock)
+        .oneshot(get("/api/ballot?address=123+Main+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    let contests = json["contests"].as_array().unwrap();
+    for contest in contests {
+        if contest["level"] != "federal" {
+            for candidate in contest["candidates"].as_array().unwrap() {
+                assert!(candidate.get("campaign_finance").is_none());
+            }
+        }
+    }
+    // wiremock verifies the `.expect(2)` on `/candidates/search/` when `fec_mock` drops.
 }
