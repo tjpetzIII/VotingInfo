@@ -75,6 +75,23 @@ const messages = {
   "ballot.linkCopied": "Link copied!",
   "ballot.shareCopyFailed": "Couldn't copy the link automatically — copy it manually:",
 
+  "electionType.toggle": "Toggle election type explainer",
+  "electionType.primary.title": "This is a Primary Election",
+  "electionType.primary.explanation":
+    "Voters choose which candidates will represent each party in the general election. Depending on your state's rules, you may need to be registered with a party to vote in its primary.",
+  "electionType.general.title": "This is a General Election",
+  "electionType.general.explanation":
+    "All registered voters can vote for any candidate in each race. The winners take office.",
+  "electionType.special.title": "This is a Special Election",
+  "electionType.special.explanation":
+    "This election is being held outside the normal election calendar, often to fill a vacancy or decide a specific issue before the next general election.",
+  "electionType.runoff.title": "This is a Runoff Election",
+  "electionType.runoff.explanation":
+    "No candidate in an earlier race got enough votes to win outright, so voters are choosing between the top finishers from that race.",
+  "electionType.generic.title": "About This Ballot",
+  "electionType.generic.explanation":
+    "This sample ballot shows the contests and candidates for your address for this election.",
+
   "addressForm.streetLabel": "Street Address",
   "addressForm.streetPlaceholder": "e.g. 123 Main St",
   "addressForm.cityLabel": "City",

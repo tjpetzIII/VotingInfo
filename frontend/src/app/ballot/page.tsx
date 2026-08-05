@@ -8,6 +8,7 @@ import { useIntl, FormattedMessage } from "react-intl";
 import AddressForm from "@/components/AddressForm";
 import AddressSummary from "@/components/AddressSummary";
 import CandidateCard from "@/components/CandidateCard";
+import ElectionTypeBanner from "@/components/ElectionTypeBanner";
 import { fetchBallot, type BallotContest, type BallotLevel } from "@/lib/api";
 import {
   useAddress,
@@ -99,6 +100,12 @@ function BallotContent() {
       {error && (
         <div className="mt-8 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
           {(error as Error).message}
+        </div>
+      )}
+
+      {data?.election && (
+        <div className="mt-8">
+          <ElectionTypeBanner election={data.election} />
         </div>
       )}
 

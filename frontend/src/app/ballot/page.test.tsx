@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { IntlProvider } from "react-intl";
@@ -133,6 +133,109 @@ describe("BallotPage", () => {
     renderBallot();
 
     expect(await screen.findByText("Jane Doe")).toBeInTheDocument();
+  });
+
+  it("shows the election type explainer banner for a general election", async () => {
+    setSearch("address=123+Main+St%2C+Austin%2C+TX+78701");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => BALLOT_RESPONSE,
+      })
+    );
+
+    renderBallot();
+
+    expect(await screen.findByText("This is a General Election")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "All registered voters can vote for any candidate in each race. The winners take office."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("shows the generic explainer fallback for an unrecognized election name", async () => {
+    setSearch("address=123+Main+St%2C+Austin%2C+TX+78701");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ...BALLOT_RESPONSE,
+          election: { ...BALLOT_RESPONSE.election, name: "City Council Municipal Election" },
+        }),
+      })
+    );
+
+    renderBallot();
+
+    expect(await screen.findByText("About This Ballot")).toBeInTheDocument();
+  });
+
+  it("collapsing the election type banner leaves the contests fully visible", async () => {
+    const user = userEvent.setup();
+    setSearch("address=123+Main+St%2C+Austin%2C+TX+78701");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => BALLOT_RESPONSE,
+      })
+    );
+
+    renderBallot();
+
+    await screen.findByText("Jane Doe");
+    const banner = screen.getByText("This is a General Election").closest("div")!;
+    const bannerToggle = within(banner).getByRole("button");
+    await user.click(bannerToggle);
+
+    expect(bannerToggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByText("Jane Doe")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "State" })).toBeInTheDocument();
+  });
+
+  it("re-expands the election type banner when a new address yields a different election", async () => {
+    const user = userEvent.setup();
+    setSearch("address=123+Main+St%2C+Austin%2C+TX+78701");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => BALLOT_RESPONSE,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderBallot();
+
+    await screen.findByText("Jane Doe");
+    const firstBanner = screen.getByText("This is a General Election").closest("div")!;
+    await user.click(within(firstBanner).getByRole("button"));
+    expect(within(firstBanner).getByRole("button")).toHaveAttribute("aria-expanded", "false");
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...BALLOT_RESPONSE,
+        election: { id: "2", name: "2026 Primary Election", election_day: "2027-03-01" },
+      }),
+    });
+
+    await user.type(screen.getByLabelText("Street Address"), "456 Oak Ave");
+    await user.type(screen.getByLabelText("City"), "Dallas");
+    await user.type(screen.getByLabelText("State"), "TX");
+    await user.type(screen.getByLabelText("ZIP Code"), "75201");
+    await user.click(screen.getByRole("button", { name: "Search" }));
+
+    const newBanner = await screen.findByText("This is a Primary Election");
+    expect(newBanner.closest("div")!.querySelector("button")).toHaveAttribute(
+      "aria-expanded",
+      "true"
+    );
   });
 
   it("shows the empty-ballot message when there are no contests", async () => {

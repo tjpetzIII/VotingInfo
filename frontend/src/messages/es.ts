@@ -78,6 +78,23 @@ const messages: Record<MessageKey, string> = {
   "ballot.linkCopied": "¡Enlace copiado!",
   "ballot.shareCopyFailed": "No se pudo copiar el enlace automáticamente — cópialo manualmente:",
 
+  "electionType.toggle": "Mostrar u ocultar la explicación del tipo de elección",
+  "electionType.primary.title": "Esta es una Elección Primaria",
+  "electionType.primary.explanation":
+    "Los votantes eligen qué candidatos representarán a cada partido en la elección general. Según las reglas de tu estado, es posible que debas estar afiliado a un partido para votar en su primaria.",
+  "electionType.general.title": "Esta es una Elección General",
+  "electionType.general.explanation":
+    "Todos los votantes registrados pueden votar por cualquier candidato en cada contienda. Quienes ganen asumirán el cargo.",
+  "electionType.special.title": "Esta es una Elección Especial",
+  "electionType.special.explanation":
+    "Esta elección se realiza fuera del calendario electoral habitual, a menudo para cubrir una vacante o decidir un asunto específico antes de la próxima elección general.",
+  "electionType.runoff.title": "Esta es una Elección de Segunda Vuelta",
+  "electionType.runoff.explanation":
+    "Ningún candidato en una elección anterior obtuvo suficientes votos para ganar directamente, así que los votantes elegirán entre los dos candidatos más votados de esa elección.",
+  "electionType.generic.title": "Sobre Esta Boleta",
+  "electionType.generic.explanation":
+    "Esta boleta de muestra muestra las contiendas y candidatos para tu dirección en esta elección.",
+
   "addressForm.streetLabel": "Dirección",
   "addressForm.streetPlaceholder": "ej. 123 Main St",
   "addressForm.cityLabel": "Ciudad",
