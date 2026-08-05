@@ -1,4 +1,4 @@
-FROM node:25-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 COPY frontend/package.json ./package.json
 COPY frontend/yarn.lock ./yarn.lock
@@ -6,7 +6,7 @@ RUN yarn install --frozen-lockfile
 COPY frontend ./
 RUN yarn build
 
-FROM node:25-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/.next/standalone ./
