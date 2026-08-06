@@ -103,8 +103,16 @@ src/
                                     address) for the free OpenFEC API; matches federal (President/Senate/House)
                                     candidates by name+state+office+cycle, failing closed to "no data" on any
                                     ambiguous or missing match, and fetches totals + top contributors
-  services/geocoder.rs           — GeocoderClient: geocodes polling-location addresses via Nominatim (OpenStreetMap),
-                                    24h moka cache, requests serialized ≥1s apart per Nominatim usage policy
+  services/census_geocoder.rs    — CensusGeocoderClient: geocodes addresses via the Census Bureau Geocoder
+                                    (`onelineaddress`/`Public_AR_Current`), free and keyless with no documented
+                                    rate limit, so calls are unpaced (VOT-59)
+  services/geocoder.rs           — GeocoderClient: primary/fallback orchestrator for polling-location
+                                    coordinates — tries CensusGeocoderClient first (unpaced), falling back to
+                                    Nominatim (OpenStreetMap) only when Census can't match an address; a single
+                                    24h moka cache holds the resolved coordinate either way. Nominatim requests
+                                    remain serialized ≥1s apart per its usage policy, but that pacing now applies
+                                    only to the fallback path (VOT-59; see specs/008-census-geocoder-migration/
+                                    and docs/census-geocoder-spike.md for the go/no-go evidence)
   services/state_registration.rs — StateRegistrationService: loads `data/state_registration_urls.json` at compile
                                     time (include_str!) into a state-abbreviation → registration-info lookup table,
                                     used as a fallback when the Civic API has no registration data for an address

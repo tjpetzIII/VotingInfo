@@ -217,14 +217,18 @@ impl CivicApiClient {
         )
     }
 
-    /// Constructs a client with custom base URLs for both the Civic API and Nominatim.
-    /// Used in tests that also need to mock geocoding. The FEC client defaults to the civic
-    /// mock server, same rationale as `new_with_base_url`.
+    /// Constructs a client with custom base URLs for both the Civic API and geocoding.
+    /// Used in tests that also need to mock geocoding. `geocoder_base_url` is used for both the
+    /// Census primary and Nominatim fallback so tests stay fully mocked (Constitution Principle
+    /// II) — an unmocked Census path on that same mock server 404s by default, which
+    /// `GeocoderClient` treats as "no match" and falls through to the mocked Nominatim path,
+    /// preserving existing test behavior. The FEC client defaults to the civic mock server, same
+    /// rationale as `new_with_base_url`.
     pub fn new_with_urls(api_key: &str, civic_base_url: &str, geocoder_base_url: &str) -> Self {
         Self::build(
             api_key.to_string(),
             civic_base_url.to_string(),
-            GeocoderClient::new_with_base_url(geocoder_base_url),
+            GeocoderClient::new_with_urls(geocoder_base_url, geocoder_base_url),
             FecApiClient::new_with_base_url("test_key", civic_base_url),
         )
     }

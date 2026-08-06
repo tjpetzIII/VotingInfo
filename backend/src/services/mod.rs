@@ -1,6 +1,7 @@
 pub mod ak_scraper;
 pub mod al_scraper;
 pub mod az_scraper;
+pub mod census_geocoder;
 pub mod civic_api;
 pub mod election_dates;
 pub mod fec_api;
