@@ -167,6 +167,11 @@ const messages: Record<MessageKey, string> = {
   "notFound.title": "Página no encontrada",
   "notFound.description": "La página que buscas no existe.",
   "notFound.goHome": "Ir al inicio",
+  "notFound.helpfulLinks": "O prueba una de estas:",
+  "notFound.linkAllElections": "Todas las elecciones",
+  "notFound.linkVoterInfo": "Información del votante",
+  "notFound.linkRegistrationDates": "Fechas de registro",
+  "notFound.linkKeyDates": "Fechas clave",
 
   "loading.text": "Cargando tu información de votante...",
 

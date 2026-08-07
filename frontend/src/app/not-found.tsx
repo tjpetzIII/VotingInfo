@@ -3,6 +3,13 @@
 import Link from "next/link";
 import { useIntl, FormattedMessage } from "react-intl";
 
+const helpfulLinks = [
+  { href: "/", labelId: "notFound.linkAllElections" },
+  { href: "/voter-info", labelId: "notFound.linkVoterInfo" },
+  { href: "/registration-dates", labelId: "notFound.linkRegistrationDates" },
+  { href: "/dates", labelId: "notFound.linkKeyDates" },
+] as const;
+
 export default function NotFound() {
   const intl = useIntl();
   return (
@@ -21,6 +28,23 @@ export default function NotFound() {
         >
           {intl.formatMessage({ id: "notFound.goHome" })}
         </Link>
+        <div className="mt-8 border-t border-gray-100 pt-6">
+          <p className="text-gray-400 text-xs uppercase tracking-wide mb-3">
+            <FormattedMessage id="notFound.helpfulLinks" />
+          </p>
+          <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm">
+            {helpfulLinks.map(({ href, labelId }) => (
+              <li key={href}>
+                <Link
+                  href={href}
+                  className="text-blue-600 hover:text-blue-700 hover:underline transition-colors"
+                >
+                  {intl.formatMessage({ id: labelId })}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </div>
   );

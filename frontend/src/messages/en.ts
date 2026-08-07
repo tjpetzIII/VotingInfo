@@ -164,6 +164,11 @@ const messages = {
   "notFound.title": "Page not found",
   "notFound.description": "The page you're looking for doesn't exist.",
   "notFound.goHome": "Go home",
+  "notFound.helpfulLinks": "Or try one of these:",
+  "notFound.linkAllElections": "All Elections",
+  "notFound.linkVoterInfo": "Voter Info",
+  "notFound.linkRegistrationDates": "Registration Dates",
+  "notFound.linkKeyDates": "Key Dates",
 
   "loading.text": "Loading your voter information...",
 
