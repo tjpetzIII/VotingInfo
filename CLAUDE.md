@@ -158,7 +158,7 @@ supabase/                         — Supabase CLI project config (local dev sta
 
 **`AppError`** variants: `Reqwest` (network), `ExternalApiError { status, message }` (non-2xx from Google or Supabase), `NotFound` (404), `Config` (missing env var), `ValidationError(String)` (422), `RateLimited` (429), `ScraperError(String)` (state scraper couldn't parse a page, 500). All return JSON `{ "error": "...", "code": "..." }`.
 
-**Rate limiting:** `tower_governor` 0.4, per-IP, `.period(Duration::from_secs(2)).burst_size(30)` = 30 req/min sustained with burst of 30. Applied only to `/api/*` routes via nested router. Uses `SmartIpKeyExtractor` (reads X-Forwarded-For, X-Real-IP, or peer addr). Requires `into_make_service_with_connect_info::<SocketAddr>()` on serve.
+**Rate limiting:** `tower_governor` 0.8, per-IP, `.period(Duration::from_secs(2)).burst_size(30)` = 30 req/min sustained with burst of 30. Applied only to `/api/*` routes via nested router. Uses `SmartIpKeyExtractor` (reads X-Forwarded-For, X-Real-IP, or peer addr). Requires `into_make_service_with_connect_info::<SocketAddr>()` on serve.
 
 **State:** `AppState { civic: Arc<CivicApiClient>, supabase: Arc<SupabaseClient> }` is built at startup in `main()` via `AppState::new(civic_client)` (`lib.rs`) — panics if `GOOGLE_CIVIC_API_KEY` is not set. `SupabaseClient::new()` never panics; it just no-ops with `AppError::Config` until `SUPABASE_URL`/`SUPABASE_KEY` are set. `impl FromRef<AppState>` for each inner `Arc<...>` lets handlers extract only the client they need.
 
