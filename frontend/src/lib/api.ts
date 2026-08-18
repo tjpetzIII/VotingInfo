@@ -1,5 +1,31 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
+/**
+ * Shared fetch + error-handling for every backend call in this module.
+ *
+ * Fetches `${API_BASE}${path}`, then:
+ * - throws `options.notFoundMessage` (when provided) on a 404,
+ * - throws the backend's `error` field — falling back to `Error ${status}` —
+ *   on any other non-2xx response,
+ * - otherwise returns the parsed JSON body typed as `T`.
+ *
+ * Network failures from `fetch` itself propagate unchanged.
+ */
+async function apiFetch<T>(
+  path: string,
+  options?: { notFoundMessage?: string }
+): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`);
+  if (options?.notFoundMessage && res.status === 404) {
+    throw new Error(options.notFoundMessage);
+  }
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error((json as { error?: string }).error ?? `Error ${res.status}`);
+  }
+  return res.json();
+}
+
 export interface Election {
   id: string;
   name: string;
@@ -31,17 +57,10 @@ export interface VoterInfoResponse {
 }
 
 export async function fetchVoterInfo(address: string): Promise<VoterInfoResponse> {
-  const res = await fetch(
-    `${API_BASE}/api/voter-info?address=${encodeURIComponent(address)}`
+  return apiFetch<VoterInfoResponse>(
+    `/api/voter-info?address=${encodeURIComponent(address)}`,
+    { notFoundMessage: "No voter info found for this address." }
   );
-  if (res.status === 404) {
-    throw new Error("No voter info found for this address.");
-  }
-  if (!res.ok) {
-    const json = await res.json().catch(() => ({}));
-    throw new Error((json as { error?: string }).error ?? `Error ${res.status}`);
-  }
-  return res.json();
 }
 
 export interface Channel {
@@ -102,26 +121,14 @@ export interface AllElectionsResponse {
 }
 
 export async function fetchAllElections(): Promise<AllElectionsResponse> {
-  const res = await fetch(`${API_BASE}/api/all-elections`);
-  if (!res.ok) {
-    const json = await res.json().catch(() => ({}));
-    throw new Error((json as { error?: string }).error ?? `Error ${res.status}`);
-  }
-  return res.json();
+  return apiFetch<AllElectionsResponse>(`/api/all-elections`);
 }
 
 export async function fetchElections(address: string): Promise<ElectionsResponse> {
-  const res = await fetch(
-    `${API_BASE}/api/elections?address=${encodeURIComponent(address)}`
+  return apiFetch<ElectionsResponse>(
+    `/api/elections?address=${encodeURIComponent(address)}`,
+    { notFoundMessage: "No election data found for this address." }
   );
-  if (res.status === 404) {
-    throw new Error("No election data found for this address.");
-  }
-  if (!res.ok) {
-    const json = await res.json().catch(() => ({}));
-    throw new Error((json as { error?: string }).error ?? `Error ${res.status}`);
-  }
-  return res.json();
 }
 
 export interface ElectionOfficial {
@@ -161,17 +168,10 @@ export interface RegistrationResponse {
 }
 
 export async function fetchRegistration(address: string): Promise<RegistrationResponse> {
-  const res = await fetch(
-    `${API_BASE}/api/registration?address=${encodeURIComponent(address)}`
+  return apiFetch<RegistrationResponse>(
+    `/api/registration?address=${encodeURIComponent(address)}`,
+    { notFoundMessage: "No registration info found for this address." }
   );
-  if (res.status === 404) {
-    throw new Error("No registration info found for this address.");
-  }
-  if (!res.ok) {
-    const json = await res.json().catch(() => ({}));
-    throw new Error((json as { error?: string }).error ?? `Error ${res.status}`);
-  }
-  return res.json();
 }
 
 // --- Sample ballot ---
@@ -213,17 +213,10 @@ export function findContestById(
 }
 
 export async function fetchBallot(address: string): Promise<BallotResponse> {
-  const res = await fetch(
-    `${API_BASE}/api/ballot?address=${encodeURIComponent(address)}`
+  const data = await apiFetch<BallotResponse>(
+    `/api/ballot?address=${encodeURIComponent(address)}`,
+    { notFoundMessage: "No sample ballot found for this address." }
   );
-  if (res.status === 404) {
-    throw new Error("No sample ballot found for this address.");
-  }
-  if (!res.ok) {
-    const json = await res.json().catch(() => ({}));
-    throw new Error((json as { error?: string }).error ?? `Error ${res.status}`);
-  }
-  const data = (await res.json()) as BallotResponse;
   // Backend omits `channels` entirely when empty (skip_serializing_if); normalize so
   // CandidateCard's `candidate.channels.length` never sees undefined.
   return {
@@ -269,12 +262,7 @@ export interface StateDataResponse {
 }
 
 export async function fetchStateElections(stateCode: string): Promise<StateDataResponse> {
-  const res = await fetch(`${API_BASE}/api/${stateCode.toLowerCase()}-elections`);
-  if (!res.ok) {
-    const json = await res.json().catch(() => ({}));
-    throw new Error((json as { error?: string }).error ?? `Error ${res.status}`);
-  }
-  return res.json();
+  return apiFetch<StateDataResponse>(`/api/${stateCode.toLowerCase()}-elections`);
 }
 
 // --- Election dates aggregation ---
@@ -293,12 +281,7 @@ export interface ElectionDatesResponse {
 }
 
 export async function fetchElectionDates(address: string): Promise<ElectionDatesResponse> {
-  const res = await fetch(
-    `${API_BASE}/api/elections/dates?address=${encodeURIComponent(address)}`
+  return apiFetch<ElectionDatesResponse>(
+    `/api/elections/dates?address=${encodeURIComponent(address)}`
   );
-  if (!res.ok) {
-    const json = await res.json().catch(() => ({}));
-    throw new Error((json as { error?: string }).error ?? `Error ${res.status}`);
-  }
-  return res.json();
 }
