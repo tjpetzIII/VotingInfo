@@ -7,9 +7,9 @@ status: reviewed-integrated
 
 ## Assignment
 
-Agent: vot_28  
-Worktree: /private/tmp/voteready-vot-28  
-Branch: codex/vot-28  
+Agent: vot_28
+Worktree: /private/tmp/voteready-vot-28
+Branch: codex/vot-28
 Spec directory: specs/028-vot-28
 
 ## Evidence and handoff
