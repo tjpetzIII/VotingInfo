@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useIntl, FormattedMessage } from "react-intl";
 import {
   fetchVoterInfo,
@@ -17,6 +17,8 @@ import {
   formatAddress as formatSavedAddress,
   parseFormattedAddress,
 } from "@/contexts/AddressContext";
+import ElectionChooser from "@/components/ElectionChooser";
+import { useElection } from "@/contexts/ElectionContext";
 
 // ---------------------------------------------------------------------------
 // Registration helpers (moved from registration/page.tsx)
@@ -167,13 +169,16 @@ function RegistrationFlags({ result }: { result: RegistrationResponse }) {
 export default function VoterInfoPage() {
   const intl = useIntl();
   const { address: savedAddress, setAddress } = useAddress();
+  const { electionId } = useElection();
   const [loading, setLoading] = useState(false);
   const [voterInfoResult, setVoterInfoResult] = useState<VoterInfoResponse | null>(null);
   const [registrationResult, setRegistrationResult] = useState<RegistrationResponse | null>(null);
   const [voterInfoError, setVoterInfoError] = useState<string | null>(null);
   const [registrationError, setRegistrationError] = useState<string | null>(null);
+  const requestRef = useRef(0);
 
   const runFetch = useCallback(async (address: string) => {
+    const requestId = ++requestRef.current;
     setVoterInfoResult(null);
     setRegistrationResult(null);
     setVoterInfoError(null);
@@ -181,28 +186,32 @@ export default function VoterInfoPage() {
     setLoading(true);
 
     const [voterRes, regRes] = await Promise.allSettled([
-      fetchVoterInfo(address),
-      fetchRegistration(address),
+      fetchVoterInfo(address, electionId ?? undefined),
+      fetchRegistration(address, electionId ?? undefined),
     ]);
 
-    if (voterRes.status === "fulfilled") {
-      setVoterInfoResult(voterRes.value);
-    } else {
-      setVoterInfoError(
-        voterRes.reason instanceof Error ? voterRes.reason.message : "Something went wrong."
-      );
+    if (requestId === requestRef.current) {
+      if (voterRes.status === "fulfilled") {
+        setVoterInfoResult(voterRes.value);
+      } else {
+        setVoterInfoError(
+          voterRes.reason instanceof Error ? voterRes.reason.message : "Something went wrong."
+        );
+      }
     }
 
-    if (regRes.status === "fulfilled") {
-      setRegistrationResult(regRes.value);
-    } else {
-      setRegistrationError(
-        regRes.reason instanceof Error ? regRes.reason.message : "Something went wrong."
-      );
+    if (requestId === requestRef.current) {
+      if (regRes.status === "fulfilled") {
+        setRegistrationResult(regRes.value);
+      } else {
+        setRegistrationError(
+          regRes.reason instanceof Error ? regRes.reason.message : "Something went wrong."
+        );
+      }
     }
 
-    setLoading(false);
-  }, []);
+    if (requestId === requestRef.current) setLoading(false);
+  }, [electionId]);
 
   // Auto-fetch whenever a saved address is present (mount-time hydration or a change from any page).
   const formatted = savedAddress ? formatSavedAddress(savedAddress) : null;

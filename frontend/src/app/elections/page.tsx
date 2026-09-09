@@ -7,6 +7,8 @@ import Link from "next/link";
 import { useIntl, FormattedMessage } from "react-intl";
 import { fetchElections, type ContestDetail } from "@/lib/api";
 import AddressSummary from "@/components/AddressSummary";
+import ElectionChooser from "@/components/ElectionChooser";
+import { useElection } from "@/contexts/ElectionContext";
 import {
   useAddress,
   formatAddress,
@@ -18,6 +20,7 @@ function ElectionsContent() {
   const searchParams = useSearchParams();
   const urlAddress = searchParams.get("address") ?? "";
   const { address: savedAddress, setAddress: setSharedAddress } = useAddress();
+  const { electionId, selectionRequired } = useElection();
 
   const [inputValue, setInputValue] = useState(urlAddress);
   const [address, setAddress] = useState(urlAddress);
@@ -34,9 +37,9 @@ function ElectionsContent() {
   }, [urlAddress, savedAddress]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["elections", address],
-    queryFn: () => fetchElections(address),
-    enabled: !!address,
+    queryKey: ["elections", address, electionId],
+    queryFn: () => fetchElections(address, electionId ?? undefined),
+    enabled: !!address && (!selectionRequired || !!electionId),
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
@@ -88,6 +91,7 @@ function ElectionsContent() {
       </form>
 
       <AddressSummary />
+      <ElectionChooser />
 
       {isLoading && <LoadingSkeleton />}
 

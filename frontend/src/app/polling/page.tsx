@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import AddressForm from "@/components/AddressForm";
 import AddressSummary from "@/components/AddressSummary";
+import ElectionChooser from "@/components/ElectionChooser";
+import { useElection } from "@/contexts/ElectionContext";
 import {
   useAddress,
   formatAddress,
@@ -25,36 +27,46 @@ type PageState =
 
 export default function PollingPage() {
   const { address: savedAddress, setAddress } = useAddress();
+  const { electionId } = useElection();
   const [pageState, setPageState] = useState<PageState>({ status: "idle" });
+  const requestRef = useRef(0);
 
   const runFetch = useCallback(async (address: string) => {
+    const requestId = ++requestRef.current;
     setPageState({ status: "loading" });
     const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
     try {
       const res = await fetch(
-        `${apiBase}/api/voter-info?address=${encodeURIComponent(address)}`
+        `${apiBase}/api/voter-info?address=${encodeURIComponent(address)}${electionId ? `&electionId=${encodeURIComponent(electionId)}` : ""}`
       );
 
       if (res.status === 404) {
-        setPageState({ status: "error", message: "No election data found for this address." });
+        if (requestId === requestRef.current) {
+          setPageState({ status: "error", message: "No election data found for this address." });
+        }
         return;
       }
 
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        setPageState({
-          status: "error",
-          message: (json as { error?: string }).error ?? "Failed to fetch voter info.",
-        });
+        if (requestId === requestRef.current) {
+          setPageState({
+            status: "error",
+            message: (json as { error?: string }).error ?? "Failed to fetch voter info.",
+          });
+        }
         return;
       }
 
-      setPageState({ status: "success", data: await res.json() });
+      const data = await res.json();
+      if (requestId === requestRef.current) setPageState({ status: "success", data });
     } catch {
-      setPageState({ status: "error", message: "Could not reach the server. Please try again." });
+      if (requestId === requestRef.current) {
+        setPageState({ status: "error", message: "Could not reach the server. Please try again." });
+      }
     }
-  }, []);
+  }, [electionId]);
 
   // Auto-fetch whenever a saved address is present (on mount-time hydration or a change from
   // any page). The derived string is the effect key, so re-renders don't re-trigger fetches.
@@ -82,6 +94,7 @@ export default function PollingPage() {
       </p>
 
       <AddressSummary />
+      <ElectionChooser />
 
       <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
         <AddressForm

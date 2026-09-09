@@ -1,0 +1,4 @@
+# Election selection API
+GET /api/election-choices?address=... returns {elections:[{id,name,election_day}],selection_required:false}. 404/no election maps to empty discovery success; upstream errors remain errors.
+GET /api/{voter-info,elections,ballot,registration,elections/dates}?address=...&election_id=123 forwards Google's electionId. Omission preserves single-election behavior. Invalid/unavailable/ambiguous IDs use stable project codes described in data-model.md.
+Frontend fetch*(address,electionId?) arguments are backwards compatible. useElection() exposes electionId and setElectionId; useElectionSelection(address) exposes effective ID, choices, readiness and query status. Query keys include resource,address,electionId. URL parameter spelling is electionId; selected election remains fixed on upstream failure.

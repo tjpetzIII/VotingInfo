@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use axum::body::Body;
-use backend::{build_app_router, services::civic_api::CivicApiClient};
 use axum::http::{Request, StatusCode};
+use backend::{build_app_router, services::civic_api::CivicApiClient};
 use http_body_util::BodyExt;
 use serde_json::{json, Value};
 use tower::ServiceExt;
-use wiremock::matchers::{header, method, path};
+use wiremock::matchers::{header, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 // ---------------------------------------------------------------------------
@@ -151,6 +151,22 @@ fn voter_info_without_registration() -> Value {
     })
 }
 
+fn voter_info_with_other_elections() -> Value {
+    json!({
+        "election": {
+            "id": "9001",
+            "name": "General Election",
+            "electionDay": "2026-11-03"
+        },
+        "otherElections": [
+            { "id": "9002", "name": "City Election", "electionDay": "2026-11-03" },
+            { "id": "9001", "name": "Duplicate General", "electionDay": "2026-11-03" }
+        ],
+        "pollingLocations": [],
+        "contests": []
+    })
+}
+
 /// Admin body present for IL but `electionRegistrationUrl` is intentionally absent.
 /// Used to verify that the static fallback URL is used when the Civic API omits it.
 fn voter_info_with_registration_no_reg_url() -> Value {
@@ -209,6 +225,86 @@ async fn health_returns_ok() {
     assert_eq!(response.status(), StatusCode::OK);
     let json = body_json(response.into_body()).await;
     assert_eq!(json["status"], "ok");
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/election-choices
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn election_choices_deduplicate_ids_and_report_same_day_ambiguity() {
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .and(query_param("address", "123 Main St, Springfield, IL 62701"))
+        .and(query_param("key", "test_key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(voter_info_with_other_elections()))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get(
+            "/api/election-choices?address=123+Main+St,+Springfield,+IL+62701",
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    assert_eq!(json["selection_required"], true);
+    assert_eq!(json["elections"].as_array().unwrap().len(), 2);
+    assert_eq!(json["elections"][0]["id"], "9001");
+    assert_eq!(json["elections"][1]["id"], "9002");
+}
+
+#[tokio::test]
+async fn explicit_election_id_is_forwarded_and_response_is_validated() {
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .and(query_param("address", "123 Main St, Springfield, IL 62701"))
+        .and(query_param("key", "test_key"))
+        .and(query_param("electionId", "42"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "election": { "id": "42", "name": "Special Election", "electionDay": "2026-08-04" },
+            "pollingLocations": [], "contests": []
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get(
+            "/api/voter-info?address=123+Main+St,+Springfield,+IL+62701&electionId=42",
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    assert_eq!(json["election"]["id"], "42");
+}
+
+#[tokio::test]
+async fn election_choices_use_actionable_empty_result_when_upstream_has_no_election() {
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(404))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let response = make_app(&mock_server)
+        .oneshot(get("/api/election-choices?address=unknown"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    assert_eq!(json["selection_required"], false);
+    assert_eq!(json["elections"].as_array().unwrap().len(), 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -271,7 +367,9 @@ async fn voter_info_success() {
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/voter-info?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/voter-info?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -280,7 +378,10 @@ async fn voter_info_success() {
     assert_eq!(json["election"]["name"], "General Election");
     assert_eq!(json["polling_locations"].as_array().unwrap().len(), 1);
     assert_eq!(json["contests"][0]["office"], "Mayor");
-    assert_eq!(json["contests"][0]["candidates"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        json["contests"][0]["candidates"].as_array().unwrap().len(),
+        2
+    );
 }
 
 #[tokio::test]
@@ -312,7 +413,9 @@ async fn voter_info_election_unknown_returns_404() {
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/voter-info?address=123+Main+St,+Nowhere,+XX+00000"))
+        .oneshot(get(
+            "/api/voter-info?address=123+Main+St,+Nowhere,+XX+00000",
+        ))
         .await
         .unwrap();
 
@@ -364,7 +467,9 @@ async fn voter_info_polling_locations_include_lat_lng() {
         .await;
 
     let response = make_app_with_geocoder(&civic_mock, &geocoder_mock)
-        .oneshot(get("/api/voter-info?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/voter-info?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -436,7 +541,9 @@ async fn voter_info_geocodes_polling_locations_concurrently() {
 
     let start = std::time::Instant::now();
     let response = make_app_with_geocoder(&civic_mock, &geocoder_mock)
-        .oneshot(get("/api/voter-info?address=100+Center+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/voter-info?address=100+Center+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
     let elapsed = start.elapsed();
@@ -478,7 +585,9 @@ async fn voter_info_geocoder_sends_correct_user_agent() {
         .await;
 
     make_app_with_geocoder(&civic_mock, &geocoder_mock)
-        .oneshot(get("/api/voter-info?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/voter-info?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
     // wiremock verifies .expect(1) on drop — confirms User-Agent was set correctly
@@ -503,7 +612,9 @@ async fn voter_info_geocode_failure_returns_null_lat_lng() {
         .await;
 
     let response = make_app_with_geocoder(&civic_mock, &geocoder_mock)
-        .oneshot(get("/api/voter-info?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/voter-info?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -513,8 +624,14 @@ async fn voter_info_geocode_failure_returns_null_lat_lng() {
     // lat/lng keys must be present but null
     assert!(loc.get("lat").is_some(), "lat key should be present");
     assert!(loc.get("lng").is_some(), "lng key should be present");
-    assert!(loc["lat"].is_null(), "lat should be null when geocoding fails");
-    assert!(loc["lng"].is_null(), "lng should be null when geocoding fails");
+    assert!(
+        loc["lat"].is_null(),
+        "lat should be null when geocoding fails"
+    );
+    assert!(
+        loc["lng"].is_null(),
+        "lng should be null when geocoding fails"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -531,7 +648,9 @@ async fn registration_returns_data_when_state_present() {
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/registration?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/registration?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -549,7 +668,10 @@ async fn registration_returns_data_when_state_present() {
     assert_eq!(officials[0]["fax"], "217-782-5959");
     // Additional fields
     assert_eq!(json["election_info_url"], "https://www.elections.il.gov/");
-    assert_eq!(json["absentee_voting_info_url"], "https://www.elections.il.gov/AbsenteeBallots/");
+    assert_eq!(
+        json["absentee_voting_info_url"],
+        "https://www.elections.il.gov/AbsenteeBallots/"
+    );
     assert_eq!(json["hours_of_operation"], "Monday-Friday 8am-5pm CT");
     let services = json["voter_services"].as_array().unwrap();
     assert_eq!(services.len(), 3);
@@ -567,7 +689,9 @@ async fn registration_returns_unavailable_when_no_state() {
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/registration?address=123+Main+St,+Nowhere,+XX+00000"))
+        .oneshot(get(
+            "/api/registration?address=123+Main+St,+Nowhere,+XX+00000",
+        ))
         .await
         .unwrap();
 
@@ -623,7 +747,9 @@ async fn registration_election_unknown_uses_state_fallback() {
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/registration?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/registration?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -635,8 +761,12 @@ async fn registration_election_unknown_uses_state_fallback() {
     assert_eq!(json["online_registration"], true);
     // Full Civic API fields must not appear in a fallback response
     assert!(json.get("admin_name").is_none() || json["admin_name"].is_null());
-    assert!(json.get("election_officials").is_none()
-        || json["election_officials"].as_array().is_none_or(|a| a.is_empty()));
+    assert!(
+        json.get("election_officials").is_none()
+            || json["election_officials"]
+                .as_array()
+                .is_none_or(|a| a.is_empty())
+    );
 }
 
 #[tokio::test]
@@ -650,7 +780,9 @@ async fn registration_election_unknown_unknown_state_returns_unavailable() {
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/registration?address=123+Main+St,+Nowhere,+XX+00000"))
+        .oneshot(get(
+            "/api/registration?address=123+Main+St,+Nowhere,+XX+00000",
+        ))
         .await
         .unwrap();
 
@@ -674,7 +806,9 @@ async fn registration_civic_data_includes_sdr_and_online_flags() {
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/registration?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/registration?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -699,7 +833,9 @@ async fn registration_civic_url_absent_falls_back_to_static_url() {
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/registration?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/registration?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -718,14 +854,14 @@ async fn registration_no_state_body_unknown_state_omits_fallback_fields() {
     let mock_server = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/voterinfo"))
-        .respond_with(
-            ResponseTemplate::new(200).set_body_json(voter_info_without_registration()),
-        )
+        .respond_with(ResponseTemplate::new(200).set_body_json(voter_info_without_registration()))
         .mount(&mock_server)
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/registration?address=123+Main+St,+Nowhere,+XX+00000"))
+        .oneshot(get(
+            "/api/registration?address=123+Main+St,+Nowhere,+XX+00000",
+        ))
         .await
         .unwrap();
 
@@ -744,14 +880,14 @@ async fn registration_no_state_body_known_state_includes_fallback_flags() {
     let mock_server = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/voterinfo"))
-        .respond_with(
-            ResponseTemplate::new(200).set_body_json(voter_info_without_registration()),
-        )
+        .respond_with(ResponseTemplate::new(200).set_body_json(voter_info_without_registration()))
         .mount(&mock_server)
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/registration?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/registration?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -781,7 +917,9 @@ async fn election_dates_returns_election_day_and_registration_deadline() {
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/elections/dates?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/elections/dates?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -813,7 +951,9 @@ async fn election_dates_election_unknown_returns_empty_list() {
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/elections/dates?address=123+Main+St,+Nowhere,+XX+00000"))
+        .oneshot(get(
+            "/api/elections/dates?address=123+Main+St,+Nowhere,+XX+00000",
+        ))
         .await
         .unwrap();
 
@@ -843,7 +983,9 @@ async fn elections_success() {
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/elections?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/elections?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -982,7 +1124,9 @@ async fn ballot_returns_contests_sorted_by_federal_state_local() {
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/ballot?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/ballot?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -1013,7 +1157,9 @@ async fn ballot_classifies_correctly_when_level_field_is_absent() {
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/ballot?address=100+N+Capitol+Ave,+Lansing,+MI+48933"))
+        .oneshot(get(
+            "/api/ballot?address=100+N+Capitol+Ave,+Lansing,+MI+48933",
+        ))
         .await
         .unwrap();
 
@@ -1044,8 +1190,14 @@ async fn ballot_classifies_correctly_when_level_field_is_absent() {
     assert_eq!(county_contest["level"], "local");
 
     // Federal before State before Local, regardless of source order.
-    let levels: Vec<&str> = contests.iter().map(|c| c["level"].as_str().unwrap()).collect();
-    assert_eq!(levels, vec!["federal", "federal", "state", "state", "local"]);
+    let levels: Vec<&str> = contests
+        .iter()
+        .map(|c| c["level"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        levels,
+        vec!["federal", "federal", "state", "state", "local"]
+    );
 }
 
 #[tokio::test]
@@ -1058,7 +1210,9 @@ async fn ballot_single_level_returns_only_that_level() {
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/ballot?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/ballot?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -1081,7 +1235,9 @@ async fn ballot_candidate_includes_all_available_fields() {
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/ballot?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/ballot?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -1108,7 +1264,9 @@ async fn ballot_contest_includes_all_candidates() {
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/ballot?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/ballot?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -1130,7 +1288,9 @@ async fn ballot_candidate_missing_fields_are_omitted_not_null() {
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/ballot?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/ballot?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -1138,7 +1298,14 @@ async fn ballot_candidate_missing_fields_are_omitted_not_null() {
     let federal_contest = &json["contests"][0];
     let john = federal_contest["candidates"][1].as_object().unwrap();
     assert_eq!(john["name"], "John Doe");
-    for field in ["party", "candidate_url", "photo_url", "phone", "email", "channels"] {
+    for field in [
+        "party",
+        "candidate_url",
+        "photo_url",
+        "phone",
+        "email",
+        "channels",
+    ] {
         assert!(
             !john.contains_key(field),
             "expected field `{field}` to be absent, found: {:?}",
@@ -1195,7 +1362,9 @@ async fn ballot_empty_contests_returns_success() {
         .await;
 
     let response = make_app(&mock_server)
-        .oneshot(get("/api/ballot?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/ballot?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -1288,7 +1457,10 @@ async fn mount_fec_confident_match(
 ) {
     Mock::given(method("GET"))
         .and(path("/candidates/search/"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(fec_search_response(candidate_id, candidate_name)))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(fec_search_response(candidate_id, candidate_name)),
+        )
         .mount(fec_mock)
         .await;
     Mock::given(method("GET"))
@@ -1327,7 +1499,9 @@ async fn elections_federal_candidate_confident_match_shows_totals() {
     .await;
 
     let response = make_app_with_fec(&civic_mock, &fec_mock)
-        .oneshot(get("/api/elections?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/elections?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -1363,7 +1537,9 @@ async fn ballot_federal_candidate_confident_match_shows_totals() {
     .await;
 
     let response = make_app_with_fec(&civic_mock, &fec_mock)
-        .oneshot(get("/api/ballot?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/ballot?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -1402,7 +1578,9 @@ async fn elections_federal_candidate_zero_fec_results_omits_field() {
         .await;
 
     let response = make_app_with_fec(&civic_mock, &fec_mock)
-        .oneshot(get("/api/elections?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/elections?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -1434,7 +1612,9 @@ async fn elections_fec_service_error_omits_field_without_failing_the_request() {
         .await;
 
     let response = make_app_with_fec(&civic_mock, &fec_mock)
-        .oneshot(get("/api/elections?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/elections?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -1455,10 +1635,18 @@ async fn elections_federal_candidate_with_contributors_shows_top_contributors() 
         .respond_with(ResponseTemplate::new(200).set_body_json(elections_voter_info_federal()))
         .mount(&civic_mock)
         .await;
-    mount_fec_confident_match(&fec_mock, FEC_CANDIDATE_ID, "Jane Q. Doe", fec_by_employer_response()).await;
+    mount_fec_confident_match(
+        &fec_mock,
+        FEC_CANDIDATE_ID,
+        "Jane Q. Doe",
+        fec_by_employer_response(),
+    )
+    .await;
 
     let response = make_app_with_fec(&civic_mock, &fec_mock)
-        .oneshot(get("/api/elections?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/elections?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -1492,7 +1680,9 @@ async fn ballot_federal_candidate_with_contributors_shows_top_contributors() {
     .await;
 
     let response = make_app_with_fec(&civic_mock, &fec_mock)
-        .oneshot(get("/api/ballot?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/ballot?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -1509,7 +1699,9 @@ async fn ballot_federal_candidate_with_contributors_shows_top_contributors() {
         .iter()
         .find(|c| c["name"] == "Jane Smith")
         .unwrap();
-    let contributors = jane["campaign_finance"]["top_contributors"].as_array().unwrap();
+    let contributors = jane["campaign_finance"]["top_contributors"]
+        .as_array()
+        .unwrap();
     assert_eq!(contributors.len(), 2);
     assert_eq!(contributors[0]["name"], "Acme Corp");
 }
@@ -1533,7 +1725,9 @@ async fn elections_federal_candidate_no_contributor_data_omits_key_not_empty_arr
     .await;
 
     let response = make_app_with_fec(&civic_mock, &fec_mock)
-        .oneshot(get("/api/elections?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/elections?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -1541,7 +1735,10 @@ async fn elections_federal_candidate_no_contributor_data_omits_key_not_empty_arr
     let cf = json["contests"][0]["candidates"][0]["campaign_finance"]
         .as_object()
         .unwrap();
-    assert_eq!(cf["total_raised"], 4200000.5, "totals must still be present");
+    assert_eq!(
+        cf["total_raised"], 4200000.5,
+        "totals must still be present"
+    );
     assert!(
         !cf.contains_key("top_contributors"),
         "expected `top_contributors` key to be absent entirely, not an empty array"
@@ -1562,7 +1759,10 @@ async fn elections_only_calls_fec_for_federal_candidates_not_state_or_local() {
     // an FEC lookup, this would be called twice and wiremock would panic on drop.
     Mock::given(method("GET"))
         .and(path("/candidates/search/"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(fec_search_response(FEC_CANDIDATE_ID, "Jane Q. Doe")))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(fec_search_response(FEC_CANDIDATE_ID, "Jane Q. Doe")),
+        )
         .expect(1)
         .mount(&fec_mock)
         .await;
@@ -1583,7 +1783,9 @@ async fn elections_only_calls_fec_for_federal_candidates_not_state_or_local() {
         .await;
 
     let response = make_app_with_fec(&civic_mock, &fec_mock)
-        .oneshot(get("/api/elections?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/elections?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 
@@ -1621,7 +1823,9 @@ async fn ballot_only_calls_fec_for_federal_candidates_not_state_or_local() {
         .await;
 
     let response = make_app_with_fec(&civic_mock, &fec_mock)
-        .oneshot(get("/api/ballot?address=123+Main+St,+Springfield,+IL+62701"))
+        .oneshot(get(
+            "/api/ballot?address=123+Main+St,+Springfield,+IL+62701",
+        ))
         .await
         .unwrap();
 

@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 import { IntlProvider } from "react-intl";
 import { LocaleProvider, useLocale } from "@/contexts/LocaleContext";
 import { AddressProvider } from "@/contexts/AddressContext";
+import { ElectionProvider } from "@/contexts/ElectionContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import enMessages from "@/messages/en";
 import esMessages from "@/messages/es";
@@ -43,9 +44,9 @@ export default function Providers({ children }: { children: ReactNode }) {
       <LocaleProvider>
         <IntlWrapper>
           <QueryClientProvider client={queryClient}>
-            <AuthProvider>
+            <ElectionProvider><AuthProvider>
               {children}
-            </AuthProvider>
+            </AuthProvider></ElectionProvider>
           </QueryClientProvider>
         </IntlWrapper>
       </LocaleProvider>

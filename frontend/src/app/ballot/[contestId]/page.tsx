@@ -9,6 +9,7 @@ import CandidateCard from "@/components/CandidateCard";
 import AddressSummary from "@/components/AddressSummary";
 import { fetchBallot, findContestById } from "@/lib/api";
 import { useAddress, formatAddress } from "@/contexts/AddressContext";
+import { useElection } from "@/contexts/ElectionContext";
 
 function candidateGridClass(count: number): string {
   return count >= 3 ? "grid grid-cols-1 md:grid-cols-3 gap-6" : "grid grid-cols-1 md:grid-cols-2 gap-6";
@@ -19,6 +20,7 @@ function ContestCompareContent() {
   const { contestId } = useParams<{ contestId: string }>();
   const searchParams = useSearchParams();
   const { address: savedAddress } = useAddress();
+  const { electionId, selectionRequired } = useElection();
   // Prefer the ?address= URL param (drill-down / shareable link); fall back to the shared saved
   // address so the detail page doesn't show the "no address" state when one is already saved.
   const address =
@@ -28,9 +30,9 @@ function ContestCompareContent() {
   const [copyFailed, setCopyFailed] = useState(false);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["ballot", address],
-    queryFn: () => fetchBallot(address),
-    enabled: !!address,
+    queryKey: ["ballot", address, electionId],
+    queryFn: () => fetchBallot(address, electionId ?? undefined),
+    enabled: !!address && (!selectionRequired || !!electionId),
     staleTime: 5 * 60 * 1000,
     retry: false,
   });

@@ -9,8 +9,8 @@ use crate::errors::AppError;
 use crate::models::{
     AllElectionsResponse, BallotCandidate, BallotContest, BallotLevel, BallotResponse,
     CampaignFinanceSummary, Candidate, CandidateDetail, Channel, Contest, ContestDetail, Election,
-    ElectionItem, ElectionOfficial, ElectionsResponse, PollingLocation, RegistrationAddress,
-    RegistrationResponse, VoterInfoResponse,
+    ElectionChoicesResponse, ElectionItem, ElectionOfficial, ElectionsResponse, PollingLocation,
+    RegistrationAddress, RegistrationResponse, VoterInfoResponse,
 };
 use crate::services::fec_api::{FecApiClient, FinanceJob};
 use crate::services::geocoder::GeocoderClient;
@@ -65,7 +65,6 @@ impl FinanceContest for BallotContest {
         self.candidates[di].campaign_finance = finance;
     }
 }
-
 
 // Raw deserialization types that match Google's JSON shape exactly.
 
@@ -208,6 +207,8 @@ struct ApiAdministrationRegion {
 #[derive(Deserialize)]
 struct ApiVoterInfoResponse {
     election: ApiElection,
+    #[serde(rename = "otherElections", default)]
+    other_elections: Vec<ApiElection>,
     #[serde(rename = "pollingLocations", default)]
     polling_locations: Vec<ApiPollingLocation>,
     #[serde(default)]
@@ -283,7 +284,11 @@ impl CivicApiClient {
 
     /// Constructs a client with custom base URLs for both the Civic API and the FEC API. Used in
     /// tests that need to mock campaign-finance scenarios (`/api/elections`, `/api/ballot`).
-    pub fn new_with_civic_and_fec_urls(api_key: &str, civic_base_url: &str, fec_base_url: &str) -> Self {
+    pub fn new_with_civic_and_fec_urls(
+        api_key: &str,
+        civic_base_url: &str,
+        fec_base_url: &str,
+    ) -> Self {
         Self::build(
             api_key.to_string(),
             civic_base_url.to_string(),
@@ -292,7 +297,12 @@ impl CivicApiClient {
         )
     }
 
-    fn build(api_key: String, base_url: String, geocoder: GeocoderClient, fec: FecApiClient) -> Self {
+    fn build(
+        api_key: String,
+        base_url: String,
+        geocoder: GeocoderClient,
+        fec: FecApiClient,
+    ) -> Self {
         Self {
             client: Client::new(),
             api_key,
@@ -308,12 +318,17 @@ impl CivicApiClient {
         }
     }
 
-    pub async fn get_voter_info(&self, address: &str) -> Result<VoterInfoResponse, AppError> {
-        if let Some(cached) = self.cache.get(address).await {
+    pub async fn get_voter_info(
+        &self,
+        address: &str,
+        election_id: Option<&str>,
+    ) -> Result<VoterInfoResponse, AppError> {
+        let key = cache_key(address, election_id);
+        if let Some(cached) = self.cache.get(&key).await {
             return Ok(cached);
         }
 
-        let raw = self.fetch_raw(address).await?;
+        let raw = self.fetch_raw(address, election_id).await?;
         let mut result = map_voter_info(raw);
 
         // Resolve polling-location coordinates concurrently rather than one-at-a-time (VOT-61 #1).
@@ -340,16 +355,21 @@ impl CivicApiClient {
             result.polling_locations[i].lng = coords.map(|(_, lng)| lng);
         }
 
-        self.cache.insert(address.to_string(), result.clone()).await;
+        self.cache.insert(key, result.clone()).await;
         Ok(result)
     }
 
-    pub async fn get_elections(&self, address: &str) -> Result<ElectionsResponse, AppError> {
-        if let Some(cached) = self.elections_cache.get(address).await {
+    pub async fn get_elections(
+        &self,
+        address: &str,
+        election_id: Option<&str>,
+    ) -> Result<ElectionsResponse, AppError> {
+        let key = cache_key(address, election_id);
+        if let Some(cached) = self.elections_cache.get(&key).await {
             return Ok(cached);
         }
 
-        let raw = self.fetch_raw(address).await?;
+        let raw = self.fetch_raw(address, election_id).await?;
         // Computed from the raw contest fields (office/district.scope/level[]) before `raw` is
         // consumed by `map_elections` below — `ContestDetail` itself doesn't retain those fields,
         // only `office`, so this is the one point where federal/state/local can still be derived.
@@ -366,21 +386,29 @@ impl CivicApiClient {
 
         let state = extract_state_from_address(address);
         let cycle = fec_cycle_for(&election_day);
-        self.attach_finance(&mut result.contests, |ci| federal_flags[ci], state.as_deref(), cycle)
-            .await;
+        self.attach_finance(
+            &mut result.contests,
+            |ci| federal_flags[ci],
+            state.as_deref(),
+            cycle,
+        )
+        .await;
 
-        self.elections_cache
-            .insert(address.to_string(), result.clone())
-            .await;
+        self.elections_cache.insert(key, result.clone()).await;
         Ok(result)
     }
 
-    pub async fn get_ballot(&self, address: &str) -> Result<BallotResponse, AppError> {
-        if let Some(cached) = self.ballot_cache.get(address).await {
+    pub async fn get_ballot(
+        &self,
+        address: &str,
+        election_id: Option<&str>,
+    ) -> Result<BallotResponse, AppError> {
+        let key = cache_key(address, election_id);
+        if let Some(cached) = self.ballot_cache.get(&key).await {
             return Ok(cached);
         }
 
-        let raw = self.fetch_raw(address).await?;
+        let raw = self.fetch_raw(address, election_id).await?;
         let election_day = raw.election.election_day.clone();
         let mut result = map_ballot(raw);
 
@@ -394,12 +422,15 @@ impl CivicApiClient {
             .iter()
             .map(|c| c.level == BallotLevel::Federal)
             .collect();
-        self.attach_finance(&mut result.contests, |ci| federal_flags[ci], state.as_deref(), cycle)
-            .await;
+        self.attach_finance(
+            &mut result.contests,
+            |ci| federal_flags[ci],
+            state.as_deref(),
+            cycle,
+        )
+        .await;
 
-        self.ballot_cache
-            .insert(address.to_string(), result.clone())
-            .await;
+        self.ballot_cache.insert(key, result.clone()).await;
         Ok(result)
     }
 
@@ -448,12 +479,17 @@ impl CivicApiClient {
         }
     }
 
-    pub async fn get_registration(&self, address: &str) -> Result<RegistrationResponse, AppError> {
-        if let Some(cached) = self.registration_cache.get(address).await {
+    pub async fn get_registration(
+        &self,
+        address: &str,
+        election_id: Option<&str>,
+    ) -> Result<RegistrationResponse, AppError> {
+        let key = cache_key(address, election_id);
+        if let Some(cached) = self.registration_cache.get(&key).await {
             return Ok(cached);
         }
 
-        let result = match self.fetch_raw(address).await {
+        let result = match self.fetch_raw(address, election_id).await {
             Ok(raw) => map_registration(raw, &self.state_registration, address),
             // No election data for this address — use static fallback so the
             // caller can still show state-level registration info.
@@ -464,9 +500,7 @@ impl CivicApiClient {
             Err(e) => return Err(e),
         };
 
-        self.registration_cache
-            .insert(address.to_string(), result.clone())
-            .await;
+        self.registration_cache.insert(key, result.clone()).await;
         Ok(result)
     }
 
@@ -475,8 +509,12 @@ impl CivicApiClient {
     /// election (`AppError::NotFound`) is treated as "no core dates available"
     /// rather than propagated, since the caller may still have scraped state data
     /// to fall back on.
-    pub async fn get_core_dates(&self, address: &str) -> Result<CoreCivicDates, AppError> {
-        match self.fetch_raw(address).await {
+    pub async fn get_core_dates(
+        &self,
+        address: &str,
+        election_id: Option<&str>,
+    ) -> Result<CoreCivicDates, AppError> {
+        match self.fetch_raw(address, election_id).await {
             Ok(raw) => {
                 let registration_deadline = raw
                     .state
@@ -545,11 +583,44 @@ impl CivicApiClient {
         Ok(result)
     }
 
-    async fn fetch_raw(&self, address: &str) -> Result<ApiVoterInfoResponse, AppError> {
+    pub async fn get_election_choices(
+        &self,
+        address: &str,
+    ) -> Result<ElectionChoicesResponse, AppError> {
+        let raw = match self.fetch_raw(address, None).await {
+            Ok(raw) => raw,
+            Err(AppError::NotFound) => {
+                return Ok(ElectionChoicesResponse {
+                    elections: Vec::new(),
+                    selection_required: false,
+                })
+            }
+            Err(error) => return Err(error),
+        };
+        Ok(map_election_choices(raw.election, raw.other_elections))
+    }
+
+    async fn fetch_raw(
+        &self,
+        address: &str,
+        election_id: Option<&str>,
+    ) -> Result<ApiVoterInfoResponse, AppError> {
+        if let Some(id) = election_id {
+            if id.is_empty() || !id.chars().all(|c| c.is_ascii_digit()) {
+                return Err(AppError::InvalidElectionId);
+            }
+        }
+        let mut query = vec![
+            ("address", address.to_string()),
+            ("key", self.api_key.clone()),
+        ];
+        if let Some(id) = election_id {
+            query.push(("electionId", id.to_string()));
+        }
         let response = self
             .client
             .get(format!("{}/voterinfo", self.base_url))
-            .query(&[("address", address), ("key", &self.api_key)])
+            .query(&query)
             .send()
             .await?;
 
@@ -575,9 +646,7 @@ impl CivicApiClient {
                     "Could not parse your address. Please check your input and try again."
                         .to_string(),
                 ),
-                "invalid" if google_message.contains("Election unknown") => {
-                    AppError::NotFound
-                }
+                "invalid" if google_message.contains("Election unknown") => AppError::NotFound,
                 _ => AppError::ExternalApiError {
                     status: status.as_u16(),
                     message: google_message.to_string(),
@@ -585,7 +654,42 @@ impl CivicApiClient {
             });
         }
 
-        Ok(response.json().await?)
+        let raw: ApiVoterInfoResponse = response.json().await?;
+        if let Some(id) = election_id {
+            if raw.election.id != id {
+                return Err(AppError::ElectionUnavailable);
+            }
+        }
+        Ok(raw)
+    }
+}
+
+fn cache_key(address: &str, election_id: Option<&str>) -> String {
+    format!("{}|{}", address, election_id.unwrap_or("default"))
+}
+
+fn map_election_choices(primary: ApiElection, others: Vec<ApiElection>) -> ElectionChoicesResponse {
+    let mut choices = vec![primary];
+    choices.extend(others);
+    choices.sort_by(|a, b| a.id.cmp(&b.id));
+    choices.dedup_by(|a, b| a.id == b.id);
+    let selection_required = choices.len() > 1
+        && choices.iter().enumerate().any(|(i, e)| {
+            choices
+                .iter()
+                .skip(i + 1)
+                .any(|other| other.election_day == e.election_day)
+        });
+    ElectionChoicesResponse {
+        elections: choices
+            .into_iter()
+            .map(|e| Election {
+                id: e.id,
+                name: e.name,
+                election_day: e.election_day,
+            })
+            .collect(),
+        selection_required,
     }
 }
 
@@ -602,11 +706,10 @@ fn map_voter_info(raw: ApiVoterInfoResponse) -> VoterInfoResponse {
             .map(|loc| {
                 let (address, location_name) = match loc.address {
                     Some(addr) => {
-                        let parts: Vec<String> =
-                            [addr.line1, addr.city, addr.state, addr.zip]
-                                .into_iter()
-                                .flatten()
-                                .collect();
+                        let parts: Vec<String> = [addr.line1, addr.city, addr.state, addr.zip]
+                            .into_iter()
+                            .flatten()
+                            .collect();
                         let address = if parts.is_empty() {
                             None
                         } else {
@@ -678,7 +781,10 @@ fn fec_office_code(office: Option<&str>) -> Option<char> {
         Some('P')
     } else if title.contains("senat") {
         Some('S')
-    } else if title.contains("representative") || title.contains("congress") || title.contains("house") {
+    } else if title.contains("representative")
+        || title.contains("congress")
+        || title.contains("house")
+    {
         Some('H')
     } else {
         None
@@ -818,7 +924,10 @@ const STATE_OFFICE_KEYWORDS: [&str; 11] = [
 /// `scope: "statewide"`), so it is only consulted after the office-title check.
 fn classify_level(office: Option<&str>, scope: Option<&str>, levels: &[String]) -> BallotLevel {
     // Honor the documented `level[]` field first, on the chance Google ever populates it.
-    if levels.iter().any(|l| l == "country" || l == "international") {
+    if levels
+        .iter()
+        .any(|l| l == "country" || l == "international")
+    {
         return BallotLevel::Federal;
     }
     if levels.iter().any(|l| l == "administrativeArea1") {
@@ -827,7 +936,12 @@ fn classify_level(office: Option<&str>, scope: Option<&str>, levels: &[String]) 
     let has_granular_level = levels.iter().any(|l| {
         matches!(
             l.as_str(),
-            "administrativeArea2" | "regional" | "locality" | "subLocality1" | "subLocality2" | "special"
+            "administrativeArea2"
+                | "regional"
+                | "locality"
+                | "subLocality1"
+                | "subLocality2"
+                | "special"
         )
     });
     if has_granular_level {
@@ -836,10 +950,16 @@ fn classify_level(office: Option<&str>, scope: Option<&str>, levels: &[String]) 
 
     // Real-world fallback: classify from the office title Google actually populates.
     if let Some(office_lower) = office.map(str::to_lowercase) {
-        if FEDERAL_OFFICE_KEYWORDS.iter().any(|kw| office_lower.contains(kw)) {
+        if FEDERAL_OFFICE_KEYWORDS
+            .iter()
+            .any(|kw| office_lower.contains(kw))
+        {
             return BallotLevel::Federal;
         }
-        if STATE_OFFICE_KEYWORDS.iter().any(|kw| office_lower.contains(kw)) {
+        if STATE_OFFICE_KEYWORDS
+            .iter()
+            .any(|kw| office_lower.contains(kw))
+        {
             return BallotLevel::State;
         }
     }
@@ -1130,6 +1250,7 @@ mod ballot_tests {
                 name: "Test Election".to_string(),
                 election_day: "2026-11-03".to_string(),
             },
+            other_elections: Vec::new(),
             polling_locations: vec![],
             contests: vec![
                 api_contest("City Council", None),
@@ -1148,5 +1269,42 @@ mod ballot_tests {
         assert_eq!(result.contests[1].id, 1);
         assert_eq!(result.contests[2].level, BallotLevel::Local);
         assert_eq!(result.contests[2].id, 2);
+    }
+
+    fn api_election(id: &str, day: &str) -> ApiElection {
+        ApiElection {
+            id: id.into(),
+            name: format!("Election {id}"),
+            election_day: day.into(),
+        }
+    }
+
+    #[test]
+    fn choices_deduplicate_ids_and_require_same_day_selection() {
+        let result = map_election_choices(
+            api_election("2", "2026-11-03"),
+            vec![
+                api_election("1", "2026-11-03"),
+                api_election("2", "2026-11-03"),
+            ],
+        );
+        assert_eq!(
+            result
+                .elections
+                .iter()
+                .map(|e| e.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["1", "2"]
+        );
+        assert!(result.selection_required);
+    }
+
+    #[test]
+    fn choices_do_not_require_selection_for_distinct_days() {
+        let result = map_election_choices(
+            api_election("1", "2026-05-19"),
+            vec![api_election("2", "2026-11-03")],
+        );
+        assert!(!result.selection_required);
     }
 }

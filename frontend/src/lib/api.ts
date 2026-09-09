@@ -56,9 +56,9 @@ export interface VoterInfoResponse {
   contests: Contest[];
 }
 
-export async function fetchVoterInfo(address: string): Promise<VoterInfoResponse> {
+export async function fetchVoterInfo(address: string, electionId?: string): Promise<VoterInfoResponse> {
   return apiFetch<VoterInfoResponse>(
-    `/api/voter-info?address=${encodeURIComponent(address)}`,
+    `/api/voter-info?address=${encodeURIComponent(address)}${electionId ? `&electionId=${encodeURIComponent(electionId)}` : ""}`,
     { notFoundMessage: "No voter info found for this address." }
   );
 }
@@ -120,13 +120,18 @@ export interface AllElectionsResponse {
   elections: ElectionItem[];
 }
 
+export interface ElectionChoicesResponse { elections: Election[]; selection_required: boolean }
+export async function fetchElectionChoices(address: string): Promise<ElectionChoicesResponse> {
+  return apiFetch<ElectionChoicesResponse>(`/api/election-choices?address=${encodeURIComponent(address)}`);
+}
+
 export async function fetchAllElections(): Promise<AllElectionsResponse> {
   return apiFetch<AllElectionsResponse>(`/api/all-elections`);
 }
 
-export async function fetchElections(address: string): Promise<ElectionsResponse> {
+export async function fetchElections(address: string, electionId?: string): Promise<ElectionsResponse> {
   return apiFetch<ElectionsResponse>(
-    `/api/elections?address=${encodeURIComponent(address)}`,
+    `/api/elections?address=${encodeURIComponent(address)}${electionId ? `&electionId=${encodeURIComponent(electionId)}` : ""}`,
     { notFoundMessage: "No election data found for this address." }
   );
 }
@@ -167,9 +172,9 @@ export interface RegistrationResponse {
   election_officials?: ElectionOfficial[];
 }
 
-export async function fetchRegistration(address: string): Promise<RegistrationResponse> {
+export async function fetchRegistration(address: string, electionId?: string): Promise<RegistrationResponse> {
   return apiFetch<RegistrationResponse>(
-    `/api/registration?address=${encodeURIComponent(address)}`,
+    `/api/registration?address=${encodeURIComponent(address)}${electionId ? `&electionId=${encodeURIComponent(electionId)}` : ""}`,
     { notFoundMessage: "No registration info found for this address." }
   );
 }
@@ -212,9 +217,9 @@ export function findContestById(
   return contests.find((c) => c.id === parsedId);
 }
 
-export async function fetchBallot(address: string): Promise<BallotResponse> {
+export async function fetchBallot(address: string, electionId?: string): Promise<BallotResponse> {
   const data = await apiFetch<BallotResponse>(
-    `/api/ballot?address=${encodeURIComponent(address)}`,
+    `/api/ballot?address=${encodeURIComponent(address)}${electionId ? `&electionId=${encodeURIComponent(electionId)}` : ""}`,
     { notFoundMessage: "No sample ballot found for this address." }
   );
   // Backend omits `channels` entirely when empty (skip_serializing_if); normalize so
@@ -280,8 +285,8 @@ export interface ElectionDatesResponse {
   dates: ElectionDate[];
 }
 
-export async function fetchElectionDates(address: string): Promise<ElectionDatesResponse> {
+export async function fetchElectionDates(address: string, electionId?: string): Promise<ElectionDatesResponse> {
   return apiFetch<ElectionDatesResponse>(
-    `/api/elections/dates?address=${encodeURIComponent(address)}`
+    `/api/elections/dates?address=${encodeURIComponent(address)}${electionId ? `&electionId=${encodeURIComponent(electionId)}` : ""}`
   );
 }

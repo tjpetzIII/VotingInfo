@@ -10,6 +10,8 @@ import AddressSummary from "@/components/AddressSummary";
 import CandidateCard from "@/components/CandidateCard";
 import ElectionTypeBanner from "@/components/ElectionTypeBanner";
 import { fetchBallot, type BallotContest, type BallotLevel } from "@/lib/api";
+import ElectionChooser from "@/components/ElectionChooser";
+import { useElection } from "@/contexts/ElectionContext";
 import {
   useAddress,
   formatAddress,
@@ -37,6 +39,7 @@ function BallotContent() {
   const searchParams = useSearchParams();
   const urlAddress = searchParams.get("address") ?? "";
   const { address: savedAddress, setAddress: setSharedAddress } = useAddress();
+  const { electionId, selectionRequired } = useElection();
   const [address, setAddress] = useState(urlAddress);
   const [expandedLevels, setExpandedLevels] = useState<Record<BallotLevel, boolean>>({
     federal: true,
@@ -53,9 +56,9 @@ function BallotContent() {
   }, [urlAddress, savedAddress]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["ballot", address],
-    queryFn: () => fetchBallot(address),
-    enabled: !!address,
+    queryKey: ["ballot", address, electionId],
+    queryFn: () => fetchBallot(address, electionId ?? undefined),
+    enabled: !!address && (!selectionRequired || !!electionId),
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
@@ -94,6 +97,8 @@ function BallotContent() {
       <div className="mt-6">
         <AddressSummary />
       </div>
+
+      <ElectionChooser />
 
       {isLoading && <LoadingSkeleton />}
 

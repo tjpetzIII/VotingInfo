@@ -3,6 +3,10 @@ const messages = {
   "nav.voterInfo": "Voter Info",
   "nav.dates": "Key Dates",
   "nav.sampleBallot": "Sample Ballot",
+  "electionChooser.label": "Choose an election",
+  "electionChooser.loading": "Finding elections for your address…",
+  "electionChooser.empty": "No elections were found for this address.",
+  "electionChooser.error": "We couldn't find elections for this address. Try again.",
   "header.tagline": "— Your voter information guide",
   "footer.copyright": "© {year} VoteReady. Empowering voters everywhere.",
 

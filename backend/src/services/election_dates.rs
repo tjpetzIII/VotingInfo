@@ -13,8 +13,9 @@ pub async fn get_election_dates(
     civic: &CivicApiClient,
     supabase: &SupabaseClient,
     address: &str,
+    election_id: Option<&str>,
 ) -> Result<ElectionDatesResponse, AppError> {
-    let core = civic.get_core_dates(address).await?;
+    let core = civic.get_core_dates(address, election_id).await?;
     let today = Local::now().date_naive();
 
     let election_day = core.election_day.as_deref().and_then(parse_flexible_date);
@@ -25,7 +26,10 @@ pub async fn get_election_dates(
         push_unique(
             &mut dates,
             ElectionDate {
-                label: core.election_name.clone().unwrap_or_else(|| "Election Day".to_string()),
+                label: core
+                    .election_name
+                    .clone()
+                    .unwrap_or_else(|| "Election Day".to_string()),
                 category: "election_day".to_string(),
                 date: day.to_string(),
                 days_remaining: (day - today).num_days(),
@@ -33,7 +37,11 @@ pub async fn get_election_dates(
         );
     }
 
-    if let Some(deadline) = core.registration_deadline.as_deref().and_then(parse_flexible_date) {
+    if let Some(deadline) = core
+        .registration_deadline
+        .as_deref()
+        .and_then(parse_flexible_date)
+    {
         push_unique(
             &mut dates,
             ElectionDate {
@@ -46,7 +54,16 @@ pub async fn get_election_dates(
     }
 
     if let Some(state) = extract_state_from_address(address) {
-        augment_from_scraped_data(supabase, &state, election_day, today, &mut dates).await;
+        augment_from_scraped_data(
+            supabase,
+            &state,
+            election_day,
+            today,
+            &mut dates,
+            core.election_name.as_deref(),
+            election_id.is_some(),
+        )
+        .await;
     }
 
     dates.sort_by(|a, b| a.date.cmp(&b.date));
@@ -62,6 +79,8 @@ async fn augment_from_scraped_data(
     election_day: Option<NaiveDate>,
     today: NaiveDate,
     dates: &mut Vec<ElectionDate>,
+    election_name: Option<&str>,
+    explicit_selection: bool,
 ) {
     let Some(config) = STATE_SCRAPERS.iter().find(|c| c.state_code == state) else {
         return;
@@ -77,9 +96,11 @@ async fn augment_from_scraped_data(
             select_matching_election(
                 elections
                     .into_iter()
-                    .map(|e| (e.election_date, e.registration_deadline, e.mail_in_deadline)),
+                    .map(|e| (e.election_name, e.election_date, e.registration_deadline, e.mail_in_deadline)),
                 election_day,
                 today,
+                election_name,
+                explicit_selection,
             ),
         );
     }
@@ -92,6 +113,8 @@ async fn augment_from_scraped_data(
             dates,
             today,
             election_day,
+            election_name,
+            explicit_selection,
             important
                 .into_iter()
                 .map(|d| (d.event_date, d.event_description, d.election_year)),
@@ -99,24 +122,33 @@ async fn augment_from_scraped_data(
     }
 }
 
-/// Picks the scraped election matching `election_day` (when known), otherwise the
-/// nearest upcoming one, and returns its `(registration_deadline, mail_in_deadline)`
-/// text fields.
+/// Picks the scraped election matching the selected name and day when explicit
+/// context is provided. Without an explicit selection, a known election day is
+/// sufficient; when no day is known, the nearest upcoming election is used.
 fn select_matching_election<I>(
     elections: I,
     election_day: Option<NaiveDate>,
     today: NaiveDate,
+    election_name: Option<&str>,
+    explicit_selection: bool,
 ) -> Option<(Option<String>, Option<String>)>
 where
-    I: Iterator<Item = (String, Option<String>, Option<String>)>,
+    I: Iterator<Item = (String, String, Option<String>, Option<String>)>,
 {
     let mut best: Option<(NaiveDate, Option<String>, Option<String>)> = None;
 
-    for (date_text, registration_deadline, mail_in_deadline) in elections {
-        let Some(d) = parse_flexible_date(&date_text) else { continue };
+    for (scraped_name, date_text, registration_deadline, mail_in_deadline) in elections {
+        let Some(d) = parse_flexible_date(&date_text) else {
+            continue;
+        };
 
         if let Some(day) = election_day {
             if d == day {
+                if explicit_selection
+                    && election_name.is_some_and(|name| normalize(name) != normalize(&scraped_name))
+                {
+                    continue;
+                }
                 return Some((registration_deadline, mail_in_deadline));
             }
             continue;
@@ -135,12 +167,17 @@ fn add_mail_in_deadline(
     today: NaiveDate,
     fields: Option<(Option<String>, Option<String>)>,
 ) {
-    let Some((registration_deadline, mail_in_deadline)) = fields else { return };
+    let Some((registration_deadline, mail_in_deadline)) = fields else {
+        return;
+    };
 
     // Only add the scraped registration deadline if the Civic API didn't already
     // supply one for this address.
     if !dates.iter().any(|d| d.category == "registration_deadline") {
-        if let Some(d) = registration_deadline.as_deref().and_then(parse_flexible_date) {
+        if let Some(d) = registration_deadline
+            .as_deref()
+            .and_then(parse_flexible_date)
+        {
             push_unique(
                 dates,
                 ElectionDate {
@@ -166,8 +203,14 @@ fn add_mail_in_deadline(
     }
 }
 
-fn add_important_dates<I>(dates: &mut Vec<ElectionDate>, today: NaiveDate, election_day: Option<NaiveDate>, rows: I)
-where
+fn add_important_dates<I>(
+    dates: &mut Vec<ElectionDate>,
+    today: NaiveDate,
+    election_day: Option<NaiveDate>,
+    election_name: Option<&str>,
+    explicit_selection: bool,
+    rows: I,
+) where
     I: Iterator<Item = (String, String, i32)>,
 {
     for (event_date, event_description, election_year) in rows {
@@ -175,9 +218,17 @@ where
             if election_year != day.year() {
                 continue;
             }
+            if explicit_selection
+                && election_name
+                    .is_some_and(|name| !normalize(name).contains(&normalize(&event_description)))
+            {
+                continue;
+            }
         }
 
-        let Some(d) = parse_flexible_date(&event_date) else { continue };
+        let Some(d) = parse_flexible_date(&event_date) else {
+            continue;
+        };
 
         push_unique(
             dates,
@@ -191,9 +242,20 @@ where
     }
 }
 
+fn normalize(value: &str) -> String {
+    value
+        .to_lowercase()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 /// Skips entries that duplicate an existing (category, date) pair already present.
 fn push_unique(dates: &mut Vec<ElectionDate>, entry: ElectionDate) {
-    if !dates.iter().any(|d| d.category == entry.category && d.date == entry.date) {
+    if !dates
+        .iter()
+        .any(|d| d.category == entry.category && d.date == entry.date)
+    {
         dates.push(entry);
     }
 }
@@ -205,15 +267,29 @@ fn classify_category(description: &str) -> &'static str {
 
     if d.contains("regist") {
         "registration_deadline"
-    } else if (d.contains("mail") || d.contains("absentee")) && (d.contains("request") || d.contains("apply") || d.contains("application")) {
+    } else if (d.contains("mail") || d.contains("absentee"))
+        && (d.contains("request") || d.contains("apply") || d.contains("application"))
+    {
         "mail_in_request_deadline"
-    } else if (d.contains("mail") || d.contains("absentee") || d.contains("ballot")) && (d.contains("return") || d.contains("receive") || d.contains("postmark") || d.contains("submit")) {
+    } else if (d.contains("mail") || d.contains("absentee") || d.contains("ballot"))
+        && (d.contains("return")
+            || d.contains("receive")
+            || d.contains("postmark")
+            || d.contains("submit"))
+    {
         "mail_in_return_deadline"
-    } else if d.contains("early vot") && (d.contains("begin") || d.contains("start") || d.contains("open")) {
+    } else if d.contains("early vot")
+        && (d.contains("begin") || d.contains("start") || d.contains("open"))
+    {
         "early_voting_start"
-    } else if d.contains("early vot") && (d.contains("end") || d.contains("last day") || d.contains("close")) {
+    } else if d.contains("early vot")
+        && (d.contains("end") || d.contains("last day") || d.contains("close"))
+    {
         "early_voting_end"
-    } else if d.contains("election day") || d.contains("general election") || d.contains("primary election") {
+    } else if d.contains("election day")
+        || d.contains("general election")
+        || d.contains("primary election")
+    {
         "election_day"
     } else {
         "general"
@@ -237,22 +313,34 @@ mod tests {
 
     #[test]
     fn parses_iso_date() {
-        assert_eq!(parse_flexible_date("2026-05-19"), NaiveDate::from_ymd_opt(2026, 5, 19));
+        assert_eq!(
+            parse_flexible_date("2026-05-19"),
+            NaiveDate::from_ymd_opt(2026, 5, 19)
+        );
     }
 
     #[test]
     fn parses_slash_date() {
-        assert_eq!(parse_flexible_date("05/19/2026"), NaiveDate::from_ymd_opt(2026, 5, 19));
+        assert_eq!(
+            parse_flexible_date("05/19/2026"),
+            NaiveDate::from_ymd_opt(2026, 5, 19)
+        );
     }
 
     #[test]
     fn parses_month_name_date_padded_day() {
-        assert_eq!(parse_flexible_date("May 19, 2026"), NaiveDate::from_ymd_opt(2026, 5, 19));
+        assert_eq!(
+            parse_flexible_date("May 19, 2026"),
+            NaiveDate::from_ymd_opt(2026, 5, 19)
+        );
     }
 
     #[test]
     fn parses_month_name_date_unpadded_day() {
-        assert_eq!(parse_flexible_date("May 4, 2026"), NaiveDate::from_ymd_opt(2026, 5, 4));
+        assert_eq!(
+            parse_flexible_date("May 4, 2026"),
+            NaiveDate::from_ymd_opt(2026, 5, 4)
+        );
     }
 
     #[test]
@@ -262,7 +350,10 @@ mod tests {
 
     #[test]
     fn classifies_registration() {
-        assert_eq!(classify_category("Last day to register to vote"), "registration_deadline");
+        assert_eq!(
+            classify_category("Last day to register to vote"),
+            "registration_deadline"
+        );
     }
 
     #[test]
@@ -283,7 +374,10 @@ mod tests {
 
     #[test]
     fn classifies_early_voting_start() {
-        assert_eq!(classify_category("Early voting begins"), "early_voting_start");
+        assert_eq!(
+            classify_category("Early voting begins"),
+            "early_voting_start"
+        );
     }
 
     #[test]
@@ -315,5 +409,41 @@ mod tests {
         );
         assert_eq!(dates.len(), 1);
         assert_eq!(dates[0].label, "A");
+    }
+
+    #[test]
+    fn explicit_selection_rejects_same_day_different_scraped_election() {
+        let day = NaiveDate::from_ymd_opt(2026, 11, 3).unwrap();
+        let result = select_matching_election(
+            std::iter::once((
+                "Primary Election".to_string(),
+                "2026-11-03".to_string(),
+                Some("2026-10-01".to_string()),
+                None,
+            )),
+            Some(day),
+            day,
+            Some("General Election"),
+            true,
+        );
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn implicit_selection_can_use_matching_day_without_name() {
+        let day = NaiveDate::from_ymd_opt(2026, 11, 3).unwrap();
+        let result = select_matching_election(
+            std::iter::once((
+                "General Election".to_string(),
+                "2026-11-03".to_string(),
+                Some("2026-10-01".to_string()),
+                None,
+            )),
+            Some(day),
+            day,
+            None,
+            false,
+        );
+        assert_eq!(result.unwrap().0.as_deref(), Some("2026-10-01"));
     }
 }

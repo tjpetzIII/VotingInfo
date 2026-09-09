@@ -8,6 +8,12 @@ pub struct Election {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ElectionChoicesResponse {
+    pub elections: Vec<Election>,
+    pub selection_required: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PollingLocation {
     pub name: Option<String>,
     pub address: Option<String>,
@@ -316,7 +322,11 @@ mod tests {
     #[test]
     fn voter_info_response_with_empty_collections() {
         let resp = VoterInfoResponse {
-            election: Election { id: "1".into(), name: "Test".into(), election_day: "2025-01-01".into() },
+            election: Election {
+                id: "1".into(),
+                name: "Test".into(),
+                election_day: "2025-01-01".into(),
+            },
             polling_locations: vec![],
             contests: vec![],
         };

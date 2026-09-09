@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useIntl, FormattedMessage } from "react-intl";
 import { fetchElectionDates, type ElectionDate } from "@/lib/api";
 import AddressForm from "@/components/AddressForm";
 import AddressSummary from "@/components/AddressSummary";
+import ElectionChooser from "@/components/ElectionChooser";
+import { useElection } from "@/contexts/ElectionContext";
 import {
   useAddress,
   formatAddress,
@@ -114,23 +116,28 @@ function DateCard({ item, isNextUp }: { item: ElectionDate; isNextUp: boolean })
 export default function DatesPage() {
   const intl = useIntl();
   const { address: savedAddress, setAddress } = useAddress();
+  const { electionId } = useElection();
   const [loading, setLoading] = useState(false);
   const [dates, setDates] = useState<ElectionDate[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const requestRef = useRef(0);
 
   const runFetch = useCallback(async (address: string) => {
+    const requestId = ++requestRef.current;
     setDates(null);
     setError(null);
     setLoading(true);
     try {
-      const result = await fetchElectionDates(address);
-      setDates(result.dates);
+      const result = await fetchElectionDates(address, electionId ?? undefined);
+      if (requestId === requestRef.current) setDates(result.dates);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong.");
+      if (requestId === requestRef.current) {
+        setError(e instanceof Error ? e.message : "Something went wrong.");
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestRef.current) setLoading(false);
     }
-  }, []);
+  }, [electionId]);
 
   // Auto-fetch whenever a saved address is present (mount-time hydration or a change from any page).
   const formatted = savedAddress ? formatAddress(savedAddress) : null;
@@ -153,6 +160,7 @@ export default function DatesPage() {
   return (
     <div className="max-w-6xl mx-auto py-12 px-4">
       <AddressSummary />
+      <ElectionChooser />
       <div className="flex flex-col md:flex-row md:items-start gap-6">
         <div
           className="hidden md:block shrink-0 transition-[width] duration-500 ease-in-out"

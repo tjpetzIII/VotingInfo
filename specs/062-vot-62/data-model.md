@@ -1,0 +1,3 @@
+# Data model
+Election retains string id/name/election_day. ElectionChoicesResponse has elections: Election[] and selection_required: bool. Query selection IDs are positive decimal i64 strings; malformed IDs return INVALID_ELECTION_ID (422), unavailable/mismatched return ELECTION_UNAVAILABLE (404), implicit same-day ambiguity returns ELECTION_SELECTION_REQUIRED (409).
+Session selection: {address: formatted string, electionId: string|null}; address mismatch makes electionId unavailable synchronously before refetch. URL explicit ID is validated upstream and remains selected on error. Discovery empty success differs from upstream failure.

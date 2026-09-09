@@ -22,28 +22,63 @@ pub enum AppError {
     RateLimited,
     #[error("Scraper failed to parse page: {0}")]
     ScraperError(String),
+    #[error("Invalid election ID. Please choose an election from the list.")]
+    InvalidElectionId,
+    #[error("The selected election is unavailable for this address.")]
+    ElectionUnavailable,
+    #[error("Please choose an election before continuing.")]
+    ElectionSelectionRequired,
 }
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, code, message) = match &self {
             AppError::NotFound => (StatusCode::NOT_FOUND, "NOT_FOUND", self.to_string()),
-            AppError::ValidationError(_) => {
-                (StatusCode::UNPROCESSABLE_ENTITY, "VALIDATION_ERROR", self.to_string())
-            }
-            AppError::RateLimited => {
-                (StatusCode::TOO_MANY_REQUESTS, "RATE_LIMITED", self.to_string())
-            }
-            AppError::ExternalApiError { .. } => {
-                (StatusCode::BAD_GATEWAY, "EXTERNAL_API_ERROR", self.to_string())
-            }
-            AppError::Reqwest(_) => (StatusCode::BAD_GATEWAY, "EXTERNAL_API_ERROR", self.to_string()),
-            AppError::Config(_) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "CONFIG_ERROR", self.to_string())
-            }
-            AppError::ScraperError(_) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "SCRAPER_ERROR", self.to_string())
-            }
+            AppError::ValidationError(_) => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "VALIDATION_ERROR",
+                self.to_string(),
+            ),
+            AppError::RateLimited => (
+                StatusCode::TOO_MANY_REQUESTS,
+                "RATE_LIMITED",
+                self.to_string(),
+            ),
+            AppError::ExternalApiError { .. } => (
+                StatusCode::BAD_GATEWAY,
+                "EXTERNAL_API_ERROR",
+                self.to_string(),
+            ),
+            AppError::Reqwest(_) => (
+                StatusCode::BAD_GATEWAY,
+                "EXTERNAL_API_ERROR",
+                self.to_string(),
+            ),
+            AppError::Config(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "CONFIG_ERROR",
+                self.to_string(),
+            ),
+            AppError::ScraperError(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "SCRAPER_ERROR",
+                self.to_string(),
+            ),
+            AppError::InvalidElectionId => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "INVALID_ELECTION_ID",
+                self.to_string(),
+            ),
+            AppError::ElectionUnavailable => (
+                StatusCode::NOT_FOUND,
+                "ELECTION_UNAVAILABLE",
+                self.to_string(),
+            ),
+            AppError::ElectionSelectionRequired => (
+                StatusCode::CONFLICT,
+                "ELECTION_SELECTION_REQUIRED",
+                self.to_string(),
+            ),
         };
         (status, Json(json!({ "error": message, "code": code }))).into_response()
     }
@@ -79,7 +114,10 @@ mod tests {
     #[test]
     fn external_api_error_is_502() {
         assert_eq!(
-            status(AppError::ExternalApiError { status: 403, message: "forbidden".into() }),
+            status(AppError::ExternalApiError {
+                status: 403,
+                message: "forbidden".into()
+            }),
             StatusCode::BAD_GATEWAY
         );
     }

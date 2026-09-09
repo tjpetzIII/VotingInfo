@@ -5,6 +5,10 @@ const messages: Record<MessageKey, string> = {
   "nav.voterInfo": "Información del Votante",
   "nav.dates": "Fechas Clave",
   "nav.sampleBallot": "Boleta de Muestra",
+  "electionChooser.label": "Elige una elección",
+  "electionChooser.loading": "Buscando elecciones para tu dirección…",
+  "electionChooser.empty": "No se encontraron elecciones para esta dirección.",
+  "electionChooser.error": "No se pudieron encontrar elecciones para esta dirección. Intenta de nuevo.",
   "header.tagline": "— Tu guía de información electoral",
   "footer.copyright": "© {year} VoteReady. Empoderando votantes en todas partes.",
 

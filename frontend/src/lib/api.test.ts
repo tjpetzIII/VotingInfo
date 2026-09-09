@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fetchVoterInfo, fetchAllElections, findContestById, type BallotContest } from "./api";
+import {
+  fetchVoterInfo,
+  fetchAllElections,
+  fetchElectionChoices,
+  fetchElections,
+  findContestById,
+  type BallotContest,
+} from "./api";
 
 function mockFetchOnce(response: Partial<Response> & { json?: () => Promise<unknown> }) {
   vi.stubGlobal(
@@ -66,6 +73,35 @@ describe("lib/api.ts error handling", () => {
     );
 
     await expect(fetchAllElections()).resolves.toEqual(payload);
+  });
+
+  it("discovers address-specific election choices", async () => {
+    const payload = {
+      elections: [{ id: "9001", name: "General", election_day: "2026-11-03" }],
+      selection_required: false,
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => payload,
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchElectionChoices("123 Main St, Austin, TX 78701")).resolves.toEqual(payload);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8080/api/election-choices?address=123%20Main%20St%2C%20Austin%2C%20TX%2078701"
+    );
+  });
+
+  it("includes the selected election ID in resource requests", async () => {
+    const payload = { election: { id: "9001", name: "General", election_day: "2026-11-03" }, contests: [] };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => payload } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchElections("123 Main St, Austin, TX 78701", "9001");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8080/api/elections?address=123%20Main%20St%2C%20Austin%2C%20TX%2078701&electionId=9001"
+    );
   });
 });
 

@@ -9,12 +9,14 @@ import CandidateCard from "@/components/CandidateCard";
 import AddressSummary from "@/components/AddressSummary";
 import { fetchElections } from "@/lib/api";
 import { useAddress, formatAddress } from "@/contexts/AddressContext";
+import { useElection } from "@/contexts/ElectionContext";
 
 function ContestContent() {
   const intl = useIntl();
   const { contestId } = useParams<{ contestId: string }>();
   const searchParams = useSearchParams();
   const { address: savedAddress } = useAddress();
+  const { electionId, selectionRequired } = useElection();
   // Prefer the ?address= URL param (drill-down / shareable link); fall back to the shared saved
   // address so the detail page doesn't show the "no address" state when one is already saved.
   const address =
@@ -22,9 +24,9 @@ function ContestContent() {
     (savedAddress ? formatAddress(savedAddress) : "");
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["elections", address],
-    queryFn: () => fetchElections(address),
-    enabled: !!address,
+    queryKey: ["elections", address, electionId],
+    queryFn: () => fetchElections(address, electionId ?? undefined),
+    enabled: !!address && (!selectionRequired || !!electionId),
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
