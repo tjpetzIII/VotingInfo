@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useIntl } from "react-intl";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import AddressForm from "@/components/AddressForm";
 import AddressSummary from "@/components/AddressSummary";
@@ -93,6 +94,7 @@ export default function PollingPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">
       <h1 className="text-3xl font-bold text-gray-900 mb-2">Find Your Polling Place</h1>
+      <Link className="text-sm underline" href="/voting-help">Voting help and official resources</Link>
       <p className="text-gray-500 mb-8 text-sm">
         Enter your full address to find your polling location.
       </p>

@@ -258,6 +258,7 @@ export default function VoterInfoPage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             <FormattedMessage id="voterInfo.title" />
           </h1>
+          <Link className="text-sm underline" href="/voting-help">Voting help and official resources</Link>
           <p className="text-gray-500 mb-6 text-sm">
             <FormattedMessage id="voterInfo.subtitle" />
           </p>
