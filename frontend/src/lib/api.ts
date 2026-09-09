@@ -307,11 +307,31 @@ export interface ElectionDate {
   date: string;
   /** Negative when the date is in the past. */
   days_remaining: number;
+  /** Optional detailed semantics; absent on legacy date-only records. */
+  method?: "online" | "mail" | "in_person" | "unknown";
+  action?: "received" | "postmarked" | "submitted" | "unknown";
+  cutoff_time?: string | null;
+  timezone?: string | null;
+  source_wording?: string | null;
 }
 
 export interface ElectionDatesResponse {
   metadata?: ResponseMetadata;
   dates: ElectionDate[];
+  deadlines?: Deadline[];
+}
+
+export interface Deadline {
+  id: string;
+  election_id?: string | null;
+  jurisdiction: string;
+  method: "online" | "mail" | "in_person" | "unknown";
+  action: "received" | "postmarked" | "submitted" | "unknown";
+  date: string;
+  cutoff_time?: string | null;
+  timezone?: string | null;
+  source_wording: string;
+  provenance: string;
 }
 
 export async function fetchElectionDates(address: string, electionId?: string): Promise<ElectionDatesResponse> {

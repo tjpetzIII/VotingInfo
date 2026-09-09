@@ -1,7 +1,10 @@
 use chrono::{Datelike, Local, NaiveDate};
 
 use crate::errors::AppError;
-use crate::models::{DataProvenance, ElectionDate, ElectionDatesResponse, ResponseMetadata, StateElection, StateImportantDate};
+use crate::models::{
+    DataProvenance, Deadline, DeadlineAction, ElectionDate, ElectionDatesResponse,
+    ResponseMetadata, StateElection, StateImportantDate, VotingMethod,
+};
 use crate::services::civic_api::{extract_state_from_address, CivicApiClient};
 use crate::services::scraper_utils::STATE_SCRAPERS;
 use crate::services::supabase::SupabaseClient;
@@ -32,7 +35,7 @@ pub async fn get_election_dates(
                     .unwrap_or_else(|| "Election Day".to_string()),
                 category: "election_day".to_string(),
                 date: day.to_string(),
-                days_remaining: (day - today).num_days(),
+                days_remaining: days_remaining(day, today),
             },
         );
     }
@@ -78,8 +81,49 @@ pub async fn get_election_dates(
     dates.sort_by(|a, b| a.date.cmp(&b.date));
     Ok(ElectionDatesResponse {
         metadata: ResponseMetadata::fresh(provenance, state_data_used),
+        deadlines: dates
+            .iter()
+            .map(|d| Deadline {
+                id: format!("{}:{}", d.category, d.date),
+                election_id: election_id.map(str::to_owned),
+                jurisdiction: extract_state_from_address(address)
+                    .unwrap_or_else(|| "US".to_string()),
+                method: method_for_category(&d.category),
+                action: action_for_category(&d.category),
+                date: d.date.clone(),
+                cutoff_time: None,
+                timezone: None,
+                source_wording: d.label.clone(),
+                provenance,
+            })
+            .collect(),
         dates,
     })
+}
+
+/// Deterministic date arithmetic used by callers that supply a jurisdiction's
+/// local date. Keeping the clock outside this helper avoids hidden server-local
+/// time assumptions in tests and future timezone-aware routes.
+pub fn days_remaining(deadline: NaiveDate, today: NaiveDate) -> i64 {
+    (deadline - today).num_days()
+}
+
+fn method_for_category(category: &str) -> VotingMethod {
+    match category {
+        "mail_in_request_deadline" | "mail_in_return_deadline" => VotingMethod::Mail,
+        "election_day" | "early_voting_start" | "early_voting_end" => VotingMethod::InPerson,
+        "registration_deadline" => VotingMethod::Online,
+        _ => VotingMethod::Unknown,
+    }
+}
+
+fn action_for_category(category: &str) -> DeadlineAction {
+    match category {
+        "mail_in_return_deadline" => DeadlineAction::Received,
+        "mail_in_request_deadline" | "registration_deadline" => DeadlineAction::Submitted,
+        "election_day" | "early_voting_start" | "early_voting_end" => DeadlineAction::Received,
+        _ => DeadlineAction::Unknown,
+    }
 }
 
 /// Adds mail-in deadlines and scraped "important dates" for the states we have
@@ -200,7 +244,7 @@ fn add_mail_in_deadline(
                     label: "Voter Registration Deadline".to_string(),
                     category: "registration_deadline".to_string(),
                     date: d.to_string(),
-                    days_remaining: (d - today).num_days(),
+                    days_remaining: days_remaining(d, today),
                 },
             );
         }
@@ -213,7 +257,7 @@ fn add_mail_in_deadline(
                 label: "Mail-In / Absentee Ballot Request Deadline".to_string(),
                 category: "mail_in_request_deadline".to_string(),
                 date: d.to_string(),
-                days_remaining: (d - today).num_days(),
+                days_remaining: days_remaining(d, today),
             },
         );
     }
@@ -252,7 +296,7 @@ fn add_important_dates<I>(
                 label: event_description.clone(),
                 category: classify_category(&event_description).to_string(),
                 date: d.to_string(),
-                days_remaining: (d - today).num_days(),
+                days_remaining: days_remaining(d, today),
             },
         );
     }
@@ -461,5 +505,20 @@ mod tests {
             false,
         );
         assert_eq!(result.unwrap().0.as_deref(), Some("2026-10-01"));
+    }
+
+    #[test]
+    fn days_remaining_uses_supplied_clock_date() {
+        let deadline = NaiveDate::from_ymd_opt(2026, 11, 3).unwrap();
+        assert_eq!(days_remaining(deadline, NaiveDate::from_ymd_opt(2026, 11, 2).unwrap()), 1);
+        assert_eq!(days_remaining(deadline, deadline), 0);
+    }
+
+    #[test]
+    fn category_semantics_remain_distinct_on_same_day() {
+        assert_eq!(method_for_category("mail_in_return_deadline"), VotingMethod::Mail);
+        assert_eq!(action_for_category("mail_in_return_deadline"), DeadlineAction::Received);
+        assert_eq!(method_for_category("registration_deadline"), VotingMethod::Online);
+        assert_eq!(action_for_category("registration_deadline"), DeadlineAction::Submitted);
     }
 }

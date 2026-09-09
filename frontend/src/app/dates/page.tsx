@@ -105,6 +105,20 @@ function DateCard({ item, isNextUp }: { item: ElectionDate; isNextUp: boolean })
         </p>
       </div>
 
+      {(item.action === "unknown" || !item.action) && (
+        <p className="text-xs text-gray-500">
+          {intl.formatMessage({
+            id: "dates.unknownCutoff",
+            defaultMessage: "Check the official source for the cutoff and submission method.",
+          })}
+        </p>
+      )}
+      {item.source_wording && (
+        <p className="text-xs text-gray-500">
+          {intl.formatMessage({ id: "dates.sourceWording", defaultMessage: "Official wording: {wording}" }, { wording: item.source_wording })}
+        </p>
+      )}
+
       {explanation && <p className="text-sm text-gray-500">{explanation}</p>}
     </div>
   );

@@ -351,16 +351,86 @@ pub struct ElectionDate {
     pub days_remaining: i64,
 }
 
+/// The legal event that satisfies a deadline. Unknown is used for legacy or
+/// source text that does not establish the rule.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DeadlineAction {
+    Received,
+    Postmarked,
+    Submitted,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum VotingMethod {
+    Online,
+    Mail,
+    InPerson,
+    Unknown,
+}
+
+/// Detailed deadline semantics. All fields beyond the date are optional so
+/// existing date-only records remain valid during migration.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Deadline {
+    pub id: String,
+    #[serde(default)]
+    pub election_id: Option<String>,
+    pub jurisdiction: String,
+    pub method: VotingMethod,
+    pub action: DeadlineAction,
+    pub date: String,
+    #[serde(default)]
+    pub cutoff_time: Option<String>,
+    #[serde(default)]
+    pub timezone: Option<String>,
+    pub source_wording: String,
+    pub provenance: DataProvenance,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ElectionDatesResponse {
     #[serde(default)]
     pub metadata: ResponseMetadata,
     pub dates: Vec<ElectionDate>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub deadlines: Vec<Deadline>,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn deadline_semantics_roundtrip_and_legacy_defaults() {
+        let deadline = Deadline {
+            id: "mail-return:2026-11-03".into(),
+            election_id: Some("2026-general".into()),
+            jurisdiction: "PA".into(),
+            method: VotingMethod::Mail,
+            action: DeadlineAction::Postmarked,
+            date: "2026-11-03".into(),
+            cutoff_time: Some("20:00".into()),
+            timezone: Some("America/New_York".into()),
+            source_wording: "Must be postmarked by 8:00 PM".into(),
+            provenance: DataProvenance::StateScraper,
+        };
+        let encoded = serde_json::to_value(&deadline).unwrap();
+        assert_eq!(encoded["action"], "postmarked");
+        assert_eq!(encoded["method"], "mail");
+        let decoded: Deadline = serde_json::from_value(encoded).unwrap();
+        assert_eq!(decoded, deadline);
+
+        let legacy: Deadline = serde_json::from_value(serde_json::json!({
+            "id": "registration:2026-10-19", "jurisdiction": "PA",
+            "method": "unknown", "action": "unknown", "date": "2026-10-19",
+            "source_wording": "October 19, 2026", "provenance": "civic_api"
+        })).unwrap();
+        assert!(legacy.cutoff_time.is_none());
+        assert!(legacy.timezone.is_none());
+    }
 
     #[test]
     fn election_roundtrips_through_json() {
