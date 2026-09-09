@@ -259,6 +259,7 @@ export default function VoterInfoPage() {
             <FormattedMessage id="voterInfo.title" />
           </h1>
           <Link className="text-sm underline" href="/voting-help">Voting help and official resources</Link>
+          <Link className="text-sm underline ml-4" href="/military-overseas">{intl.formatMessage({ id: "military.title", defaultMessage: "Military and overseas voting" })}</Link>
           <p className="text-gray-500 mb-6 text-sm">
             <FormattedMessage id="voterInfo.subtitle" />
           </p>

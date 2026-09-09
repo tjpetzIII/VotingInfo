@@ -13,6 +13,7 @@ export default function MailBallotPage() {
   return <div className="max-w-3xl mx-auto px-4 py-12">
     <h1 className="text-3xl font-bold mb-2">{intl.formatMessage({ id: "mailBallot.title" })}</h1>
     <p className="text-gray-600 mb-8">{intl.formatMessage({ id: "mailBallot.subtitle" })}</p>
+    <a href="/military-overseas" className="text-blue-600 underline">{intl.formatMessage({ id: "military.title", defaultMessage: "Military and overseas voting" })}</a>
     <label htmlFor="mail-state" className="block font-medium mb-2">{intl.formatMessage({ id: "mailBallot.state" })}</label>
     <select id="mail-state" value={state} onChange={(event) => setState(event.target.value)} className="w-full rounded-xl border p-3 mb-8">
       <option value="">{intl.formatMessage({ id: "mailBallot.chooseState" })}</option>{MAIL_BALLOT_RESOURCES.map((item) => <option key={item.state} value={item.state}>{item.name}</option>)}
