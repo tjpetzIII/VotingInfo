@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useIntl, FormattedMessage } from "react-intl";
 import Link from "next/link";
+import { serializeIcs } from "@/lib/ics";
 import { fetchElectionDates, type ElectionDate, type ResponseMetadata } from "@/lib/api";
 import DataSourceNote from "@/components/DataSourceNote";
 import AddressForm from "@/components/AddressForm";
@@ -137,6 +138,7 @@ export default function DatesPage() {
   const [dates, setDates] = useState<ElectionDate[] | null>(null);
   const [metadata, setMetadata] = useState<ResponseMetadata | undefined>();
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
   const requestRef = useRef(0);
 
   const runFetch = useCallback(async (address: string) => {
@@ -177,6 +179,10 @@ export default function DatesPage() {
 
   const nextUpIndex = dates?.findIndex((d) => d.days_remaining >= 0) ?? -1;
   const hasResults = dates !== null || error;
+  function downloadCalendar(items: ElectionDate[]) {
+    const blob = new Blob([serializeIcs(items)], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "voteready-election-dates.ics"; link.click(); URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="max-w-6xl mx-auto py-12 px-4">
@@ -220,9 +226,13 @@ export default function DatesPage() {
             {dates && dates.length > 0 && (
               <div>
                 <DataSourceNote metadata={metadata} />
+                <div className="flex flex-wrap gap-3 my-4 items-center">
+                  <button type="button" className="rounded-lg bg-blue-600 text-white px-4 py-2" onClick={() => downloadCalendar(dates.filter((item) => selected[`${item.category}-${item.date}`] !== false))}><FormattedMessage id="dates.downloadSelected" /></button>
+                  <span className="text-xs text-gray-500"><FormattedMessage id="dates.calendarSnapshot" /></span>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start mt-2">
                   {dates.map((item, i) => (
-                    <DateCard key={`${item.category}-${item.date}`} item={item} isNextUp={i === nextUpIndex} />
+                    <div key={`${item.category}-${item.date}`}><label className="flex gap-2 text-sm mb-2"><input type="checkbox" checked={selected[`${item.category}-${item.date}`] !== false} onChange={() => setSelected((old) => ({ ...old, [`${item.category}-${item.date}`]: old[`${item.category}-${item.date}`] === false }))} /><FormattedMessage id="dates.includeCalendar" /></label><DateCard item={item} isNextUp={i === nextUpIndex} /></div>
                   ))}
                 </div>
               </div>

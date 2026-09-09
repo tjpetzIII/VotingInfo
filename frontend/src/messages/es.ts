@@ -206,6 +206,9 @@ const messages: Record<MessageKey, string> = {
   "error.defaultMessage":
     "Ocurrió un error inesperado. Por favor, inténtalo de nuevo.",
   "error.tryAgain": "Intentar de nuevo",
+  "dates.downloadSelected": "Descargar fechas seleccionadas",
+  "dates.includeCalendar": "Incluir en el calendario",
+  "dates.calendarSnapshot": "Los archivos de calendario son instantáneas y no se actualizarán automáticamente.",
   "mailBallot.title": "Votar por correo",
   "mailBallot.subtitle": "Sigue los pasos de tu oficina electoral oficial. Nunca recopilamos credenciales ni informamos el estado de tu boleta.",
   "mailBallot.state": "Elige tu estado",

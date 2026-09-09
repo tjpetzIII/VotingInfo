@@ -203,6 +203,9 @@ const messages = {
   "error.defaultMessage":
     "An unexpected error occurred. Please try again.",
   "error.tryAgain": "Try Again",
+  "dates.downloadSelected": "Download selected dates",
+  "dates.includeCalendar": "Include in calendar",
+  "dates.calendarSnapshot": "Calendar files are snapshots and will not update automatically.",
   "mailBallot.title": "Vote by mail",
   "mailBallot.subtitle": "Follow your official election office's steps. We never collect ballot credentials or report your ballot status.",
   "mailBallot.state": "Choose your state",
