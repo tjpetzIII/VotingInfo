@@ -1,5 +1,17 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
+export type DataProvenance =
+  | "civic_api"
+  | "state_registration_fallback"
+  | "state_scraper"
+  | "mixed";
+export type Freshness = "fresh" | "cached";
+export interface ResponseMetadata {
+  provenance: DataProvenance;
+  freshness: Freshness;
+  fallback_used: boolean;
+}
+
 /**
  * Shared fetch + error-handling for every backend call in this module.
  *
@@ -51,6 +63,7 @@ export interface Contest {
 }
 
 export interface VoterInfoResponse {
+  metadata?: ResponseMetadata;
   election: Election;
   polling_locations: PollingLocation[];
   contests: Contest[];
@@ -105,6 +118,7 @@ export interface ContestDetail {
 }
 
 export interface ElectionsResponse {
+  metadata?: ResponseMetadata;
   election: { id: string; name: string; election_day: string };
   contests: ContestDetail[];
 }
@@ -117,6 +131,7 @@ export interface ElectionItem {
 }
 
 export interface AllElectionsResponse {
+  metadata?: ResponseMetadata;
   elections: ElectionItem[];
 }
 
@@ -153,6 +168,7 @@ export interface RegistrationAddress {
 }
 
 export interface RegistrationResponse {
+  metadata?: ResponseMetadata;
   available: boolean;
   same_day_registration?: boolean;
   online_registration?: boolean;
@@ -204,6 +220,7 @@ export interface BallotContest {
 }
 
 export interface BallotResponse {
+  metadata?: ResponseMetadata;
   election: Election;
   contests: BallotContest[];
 }
@@ -282,6 +299,7 @@ export interface ElectionDate {
 }
 
 export interface ElectionDatesResponse {
+  metadata?: ResponseMetadata;
   dates: ElectionDate[];
 }
 

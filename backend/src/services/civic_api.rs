@@ -9,8 +9,9 @@ use crate::errors::AppError;
 use crate::models::{
     AllElectionsResponse, BallotCandidate, BallotContest, BallotLevel, BallotResponse,
     CampaignFinanceSummary, Candidate, CandidateDetail, Channel, Contest, ContestDetail, Election,
-    ElectionChoicesResponse, ElectionItem, ElectionOfficial, ElectionsResponse, PollingLocation,
-    RegistrationAddress, RegistrationResponse, VoterInfoResponse,
+    DataProvenance, ElectionChoicesResponse, ElectionItem, ElectionOfficial, ElectionsResponse,
+    PollingLocation, RegistrationAddress, RegistrationResponse, ResponseMetadata,
+    VoterInfoResponse,
 };
 use crate::services::fec_api::{FecApiClient, FinanceJob};
 use crate::services::geocoder::GeocoderClient;
@@ -325,6 +326,8 @@ impl CivicApiClient {
     ) -> Result<VoterInfoResponse, AppError> {
         let key = cache_key(address, election_id);
         if let Some(cached) = self.cache.get(&key).await {
+            let mut cached = cached;
+            cached.metadata = cached.metadata.cached();
             return Ok(cached);
         }
 
@@ -366,6 +369,8 @@ impl CivicApiClient {
     ) -> Result<ElectionsResponse, AppError> {
         let key = cache_key(address, election_id);
         if let Some(cached) = self.elections_cache.get(&key).await {
+            let mut cached = cached;
+            cached.metadata = cached.metadata.cached();
             return Ok(cached);
         }
 
@@ -405,6 +410,8 @@ impl CivicApiClient {
     ) -> Result<BallotResponse, AppError> {
         let key = cache_key(address, election_id);
         if let Some(cached) = self.ballot_cache.get(&key).await {
+            let mut cached = cached;
+            cached.metadata = cached.metadata.cached();
             return Ok(cached);
         }
 
@@ -486,6 +493,8 @@ impl CivicApiClient {
     ) -> Result<RegistrationResponse, AppError> {
         let key = cache_key(address, election_id);
         if let Some(cached) = self.registration_cache.get(&key).await {
+            let mut cached = cached;
+            cached.metadata = cached.metadata.cached();
             return Ok(cached);
         }
 
@@ -536,6 +545,8 @@ impl CivicApiClient {
     pub async fn get_all_elections(&self) -> Result<AllElectionsResponse, AppError> {
         const CACHE_KEY: &str = "all";
         if let Some(cached) = self.all_elections_cache.get(CACHE_KEY).await {
+            let mut cached = cached;
+            cached.metadata = cached.metadata.cached();
             return Ok(cached);
         }
 
@@ -564,6 +575,7 @@ impl CivicApiClient {
 
         let raw: ApiElectionsQueryResponse = response.json().await?;
         let result = AllElectionsResponse {
+            metadata: ResponseMetadata::fresh(DataProvenance::CivicApi, false),
             elections: raw
                 .elections
                 .into_iter()
@@ -695,6 +707,7 @@ fn map_election_choices(primary: ApiElection, others: Vec<ApiElection>) -> Elect
 
 fn map_voter_info(raw: ApiVoterInfoResponse) -> VoterInfoResponse {
     VoterInfoResponse {
+        metadata: ResponseMetadata::fresh(DataProvenance::CivicApi, false),
         election: Election {
             id: raw.election.id,
             name: raw.election.name,
@@ -827,12 +840,16 @@ fn state_fallback_registration(
 
     match state_info {
         Some(info) => RegistrationResponse {
+            metadata: ResponseMetadata::fresh(DataProvenance::StateRegistrationFallback, true),
             same_day_registration: Some(info.same_day_registration),
             online_registration: Some(info.online_registration),
             registration_url: Some(info.registration_url.clone()),
             ..Default::default()
         },
-        None => RegistrationResponse::default(),
+        None => RegistrationResponse {
+            metadata: ResponseMetadata::fresh(DataProvenance::StateRegistrationFallback, true),
+            ..Default::default()
+        },
     }
 }
 
@@ -850,12 +867,14 @@ fn map_registration(
 
     match admin_body {
         None => RegistrationResponse {
+            metadata: ResponseMetadata::fresh(DataProvenance::CivicApi, false),
             same_day_registration: state_info.map(|i| i.same_day_registration),
             online_registration: state_info.map(|i| i.online_registration),
             registration_url: state_info.map(|i| i.registration_url.clone()),
             ..Default::default()
         },
         Some(body) => RegistrationResponse {
+            metadata: ResponseMetadata::fresh(DataProvenance::CivicApi, false),
             available: true,
             same_day_registration: state_info.map(|i| i.same_day_registration),
             online_registration: state_info.map(|i| i.online_registration),
@@ -1021,6 +1040,7 @@ fn map_ballot(raw: ApiVoterInfoResponse) -> BallotResponse {
         .collect();
 
     BallotResponse {
+        metadata: ResponseMetadata::fresh(DataProvenance::CivicApi, false),
         election: Election {
             id: raw.election.id,
             name: raw.election.name,
@@ -1032,6 +1052,7 @@ fn map_ballot(raw: ApiVoterInfoResponse) -> BallotResponse {
 
 fn map_elections(raw: ApiVoterInfoResponse) -> ElectionsResponse {
     ElectionsResponse {
+        metadata: ResponseMetadata::fresh(DataProvenance::CivicApi, false),
         election: Election {
             id: raw.election.id,
             name: raw.election.name,

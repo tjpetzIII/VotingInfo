@@ -164,6 +164,11 @@ const messages = {
     "This is the last day to vote early in person.",
   "dates.explanation.general":
     "An important date on the election calendar for your area.",
+  "dataSource.civic_api": "Source: Google Civic Information",
+  "dataSource.state_registration_fallback": "Source: your state's voter registration office",
+  "dataSource.state_scraper": "Source: your state's election office",
+  "dataSource.mixed": "Sources: Google Civic Information and your state's election office",
+  "dataSource.cached": "Information loaded from a recent lookup",
 
   "notFound.title": "Page not found",
   "notFound.description": "The page you're looking for doesn't exist.",

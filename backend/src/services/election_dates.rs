@@ -1,7 +1,7 @@
 use chrono::{Datelike, Local, NaiveDate};
 
 use crate::errors::AppError;
-use crate::models::{ElectionDate, ElectionDatesResponse, StateElection, StateImportantDate};
+use crate::models::{DataProvenance, ElectionDate, ElectionDatesResponse, ResponseMetadata, StateElection, StateImportantDate};
 use crate::services::civic_api::{extract_state_from_address, CivicApiClient};
 use crate::services::scraper_utils::STATE_SCRAPERS;
 use crate::services::supabase::SupabaseClient;
@@ -53,7 +53,7 @@ pub async fn get_election_dates(
         );
     }
 
-    if let Some(state) = extract_state_from_address(address) {
+    let state_data_used = if let Some(state) = extract_state_from_address(address) {
         augment_from_scraped_data(
             supabase,
             &state,
@@ -63,11 +63,23 @@ pub async fn get_election_dates(
             core.election_name.as_deref(),
             election_id.is_some(),
         )
-        .await;
-    }
+        .await
+    } else {
+        false
+    };
+
+    let provenance = match (core.election_day.is_some(), state_data_used) {
+        (true, true) => DataProvenance::Mixed,
+        (true, false) => DataProvenance::CivicApi,
+        (false, true) => DataProvenance::StateScraper,
+        (false, false) => DataProvenance::CivicApi,
+    };
 
     dates.sort_by(|a, b| a.date.cmp(&b.date));
-    Ok(ElectionDatesResponse { dates })
+    Ok(ElectionDatesResponse {
+        metadata: ResponseMetadata::fresh(provenance, state_data_used),
+        dates,
+    })
 }
 
 /// Adds mail-in deadlines and scraped "important dates" for the states we have
@@ -81,15 +93,17 @@ async fn augment_from_scraped_data(
     dates: &mut Vec<ElectionDate>,
     election_name: Option<&str>,
     explicit_selection: bool,
-) {
+) -> bool {
     let Some(config) = STATE_SCRAPERS.iter().find(|c| c.state_code == state) else {
-        return;
+        return false;
     };
+    let mut used = false;
 
     if let Ok(elections) = supabase
         .fetch_all::<StateElection>(&config.elections_table(), Some("election_date.asc"))
         .await
     {
+        used |= !elections.is_empty();
         add_mail_in_deadline(
             dates,
             today,
@@ -109,6 +123,7 @@ async fn augment_from_scraped_data(
         .fetch_all::<StateImportantDate>(&config.dates_table(), None)
         .await
     {
+        used |= !important.is_empty();
         add_important_dates(
             dates,
             today,
@@ -120,6 +135,7 @@ async fn augment_from_scraped_data(
                 .map(|d| (d.event_date, d.event_description, d.election_year)),
         );
     }
+    used
 }
 
 /// Picks the scraped election matching the selected name and day when explicit

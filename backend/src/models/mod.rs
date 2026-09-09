@@ -1,5 +1,43 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DataProvenance {
+    CivicApi,
+    StateRegistrationFallback,
+    StateScraper,
+    Mixed,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Freshness {
+    Fresh,
+    Cached,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ResponseMetadata {
+    pub provenance: DataProvenance,
+    pub freshness: Freshness,
+    pub fallback_used: bool,
+}
+
+impl ResponseMetadata {
+    pub fn fresh(provenance: DataProvenance, fallback_used: bool) -> Self {
+        Self { provenance, freshness: Freshness::Fresh, fallback_used }
+    }
+
+    pub fn cached(mut self) -> Self {
+        self.freshness = Freshness::Cached;
+        self
+    }
+}
+
+impl Default for ResponseMetadata {
+    fn default() -> Self { Self::fresh(DataProvenance::CivicApi, false) }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Election {
     pub id: String,
@@ -38,6 +76,8 @@ pub struct Contest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VoterInfoResponse {
+    #[serde(default)]
+    pub metadata: ResponseMetadata,
     pub election: Election,
     pub polling_locations: Vec<PollingLocation>,
     pub contests: Vec<Contest>,
@@ -55,6 +95,8 @@ pub struct ElectionItem {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AllElectionsResponse {
+    #[serde(default)]
+    pub metadata: ResponseMetadata,
     pub elections: Vec<ElectionItem>,
 }
 
@@ -108,6 +150,8 @@ pub struct ContestDetail {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ElectionsResponse {
+    #[serde(default)]
+    pub metadata: ResponseMetadata,
     pub election: Election,
     pub contests: Vec<ContestDetail>,
 }
@@ -154,6 +198,8 @@ pub struct BallotContest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BallotResponse {
+    #[serde(default)]
+    pub metadata: ResponseMetadata,
     pub election: Election,
     pub contests: Vec<BallotContest>,
 }
@@ -180,6 +226,8 @@ pub struct RegistrationAddress {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RegistrationResponse {
+    #[serde(default)]
+    pub metadata: ResponseMetadata,
     pub available: bool,
     /// Whether same-day / Election Day registration is allowed in this state.
     /// Populated from static fallback data when Civic API data is unavailable.
@@ -281,6 +329,8 @@ pub struct ElectionDate {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ElectionDatesResponse {
+    #[serde(default)]
+    pub metadata: ResponseMetadata,
     pub dates: Vec<ElectionDate>,
 }
 

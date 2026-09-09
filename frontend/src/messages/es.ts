@@ -167,6 +167,11 @@ const messages: Record<MessageKey, string> = {
     "Este es el último día para votar de forma anticipada en persona.",
   "dates.explanation.general":
     "Una fecha importante en el calendario electoral de tu área.",
+  "dataSource.civic_api": "Fuente: Información Cívica de Google",
+  "dataSource.state_registration_fallback": "Fuente: la oficina estatal de registro de votantes",
+  "dataSource.state_scraper": "Fuente: la oficina electoral de tu estado",
+  "dataSource.mixed": "Fuentes: Información Cívica de Google y la oficina electoral de tu estado",
+  "dataSource.cached": "Información cargada de una consulta reciente",
 
   "notFound.title": "Página no encontrada",
   "notFound.description": "La página que buscas no existe.",
