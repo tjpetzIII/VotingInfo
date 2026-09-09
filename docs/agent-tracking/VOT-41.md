@@ -7,9 +7,9 @@ status: implementing
 
 ## Assignment
 
-Agent: vot_41  
-Worktree: /private/tmp/voteready-vot-41  
-Branch: codex/vot-41  
+Agent: vot_41
+Worktree: /private/tmp/voteready-vot-41
+Branch: codex/vot-41
 Spec directory: specs/041-vot-41
 
 ## Evidence and handoff
