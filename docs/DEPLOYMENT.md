@@ -161,3 +161,11 @@ with `Authorization: Bearer <REFRESH_TOKEN>`. Store `REFRESH_TOKEN`, `SUPABASE_U
 uses three attempts with per-attempt timeouts, and publishes each state only after its complete
 scrape succeeds; existing rows therefore remain the last-good snapshot on failure. Review the
 sanitized refresh counts in logs and rerun after correcting an upstream or credential failure.
+
+## Voting data privacy
+
+Address lookups are session-only by default. The UI's clear voting data control removes the address,
+election selection, and React Query cache; the clear event also invalidates consumers so an older
+in-flight lookup cannot repopulate cleared results. Durable address storage requires an explicit
+opt-in and can be removed with the same control. Shared previews omit address parameters unless the
+voter explicitly chooses the include-address option.

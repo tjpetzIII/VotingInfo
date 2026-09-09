@@ -198,6 +198,9 @@ const messages: Record<MessageKey, string> = {
   "addressSummary.change": "Cambiar",
   "addressSummary.save": "Guardar",
   "addressSummary.cancel": "Cancelar",
+  "privacy.clearData": "Borrar datos electorales",
+  "privacy.cleared": "Datos electorales borrados",
+  "privacy.includeAddress": "Incluir dirección en el enlace compartido",
 
   "error.title": "Algo salió mal",
   "error.defaultMessage":

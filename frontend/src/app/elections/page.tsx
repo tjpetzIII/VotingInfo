@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useIntl, FormattedMessage } from "react-intl";
+import { buildShareUrl, copyShareUrl } from "@/lib/share";
 import { fetchElections, type ContestDetail } from "@/lib/api";
 import AddressSummary from "@/components/AddressSummary";
 import ElectionChooser from "@/components/ElectionChooser";
@@ -25,6 +26,7 @@ function ElectionsContent() {
   const [inputValue, setInputValue] = useState(urlAddress);
   const [address, setAddress] = useState(urlAddress);
   const [copied, setCopied] = useState(false);
+  const [includeAddress, setIncludeAddress] = useState(false);
 
   // When no ?address= URL param is present, fall back to the shared saved address. The URL param,
   // when present, keeps precedence for that page load (existing shareable-link behavior, VOT-25).
@@ -57,9 +59,8 @@ function ElectionsContent() {
   }
 
   function handleShare() {
-    const url = new URL(window.location.href);
-    url.searchParams.set("address", address);
-    navigator.clipboard.writeText(url.toString()).then(() => {
+    copyShareUrl(buildShareUrl(window.location.href, includeAddress, address)).then((ok) => {
+      if (!ok) return;
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
@@ -119,6 +120,10 @@ function ElectionsContent() {
                 ? intl.formatMessage({ id: "elections.copied" })
                 : intl.formatMessage({ id: "elections.share" })}
             </button>
+            <label className="text-xs text-gray-600 flex items-center gap-1">
+              <input type="checkbox" checked={includeAddress} onChange={(e) => setIncludeAddress(e.target.checked)} />
+              {intl.formatMessage({ id: "privacy.includeAddress" })}
+            </label>
           </div>
 
           {data.contests.length === 0 ? (
@@ -143,7 +148,7 @@ function ContestCard({ contest, address }: { contest: ContestDetail; address: st
   const title = [contest.office, contest.district].filter(Boolean).join(" — ");
   return (
     <Link
-      href={`/elections/${contest.id}?address=${encodeURIComponent(address)}`}
+      href={`/elections/${contest.id}`}
       className="bg-white rounded-2xl shadow-md p-5 hover:shadow-lg transition-shadow flex flex-col gap-2"
     >
       <h2 className="font-semibold text-gray-900 leading-snug">

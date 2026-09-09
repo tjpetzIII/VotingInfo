@@ -195,6 +195,9 @@ const messages = {
   "addressSummary.change": "Change",
   "addressSummary.save": "Save",
   "addressSummary.cancel": "Cancel",
+  "privacy.clearData": "Clear voting data",
+  "privacy.cleared": "Voting data cleared",
+  "privacy.includeAddress": "Include address in shared link",
 
   "error.title": "Something went wrong",
   "error.defaultMessage":

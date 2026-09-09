@@ -8,12 +8,14 @@ import { useIntl } from "react-intl";
 import LocaleSwitcher from "./LocaleSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchAllElections } from "@/lib/api";
+import { useAddress } from "@/contexts/AddressContext";
 
 export default function Header() {
   const intl = useIntl();
   const pathname = usePathname();
   const { user, loading, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { clearVotingData } = useAddress();
 
   // Same queryKey as the home page — shares its cache instead of double-fetching.
   const { data: allElections } = useQuery({
@@ -87,6 +89,9 @@ export default function Header() {
             </Link>
           )}
           <LocaleSwitcher />
+          <button type="button" onClick={clearVotingData} className="text-gray-600 hover:text-blue-600 transition-colors whitespace-nowrap">
+            {intl.formatMessage({ id: "privacy.clearData" })}
+          </button>
           {!loading &&
             (user ? (
               <div className="flex items-center gap-3">
@@ -191,6 +196,9 @@ export default function Header() {
           <div className="px-4 py-3 border-l-2 border-transparent">
             <LocaleSwitcher />
           </div>
+          <button type="button" onClick={() => { clearVotingData(); setMenuOpen(false); }} className="block px-4 py-3 text-sm text-gray-700">
+            {intl.formatMessage({ id: "privacy.clearData" })}
+          </button>
           {!loading &&
             (user ? (
               <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">

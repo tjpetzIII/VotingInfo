@@ -9,6 +9,8 @@ import {
 } from "react";
 
 const STORAGE_KEY = "address";
+const PERSISTENCE_KEY = "address-persistence-opt-in";
+export const VOTING_DATA_CLEARED_EVENT = "voteready:voting-data-cleared";
 
 export interface SavedAddress {
   street: string;
@@ -19,14 +21,16 @@ export interface SavedAddress {
 
 interface AddressContextValue {
   address: SavedAddress | null;
-  setAddress: (address: SavedAddress) => void;
+  setAddress: (address: SavedAddress, persist?: boolean) => void;
   clearAddress: () => void;
+  clearVotingData: () => void;
 }
 
 const AddressContext = createContext<AddressContextValue>({
   address: null,
   setAddress: () => {},
   clearAddress: () => {},
+  clearVotingData: () => {},
 });
 
 /** Derives the single API-ready string the backend expects, matching AddressForm's format. */
@@ -67,7 +71,7 @@ export function AddressProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = sessionStorage.getItem(STORAGE_KEY) ?? (localStorage.getItem(PERSISTENCE_KEY) === "true" ? localStorage.getItem(STORAGE_KEY) : null);
       if (!stored) return;
       const parsed: unknown = JSON.parse(stored);
       if (isSavedAddress(parsed)) {
@@ -83,10 +87,14 @@ export function AddressProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  function setAddress(next: SavedAddress) {
+  function setAddress(next: SavedAddress, persist = false) {
     setAddressState(next);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      if (persist) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        localStorage.setItem(PERSISTENCE_KEY, "true");
+      }
     } catch {
       // Storage disabled/full → keep the in-memory value for this session.
     }
@@ -95,14 +103,26 @@ export function AddressProvider({ children }: { children: ReactNode }) {
   function clearAddress() {
     setAddressState(null);
     try {
+      sessionStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(PERSISTENCE_KEY);
     } catch {
       // Storage disabled → still clear the in-memory value.
     }
   }
 
+  function clearVotingData() {
+    clearAddress();
+    try {
+      sessionStorage.removeItem("election-selection");
+      window.dispatchEvent(new Event(VOTING_DATA_CLEARED_EVENT));
+    } catch {
+      // Storage disabled; in-memory state is still cleared.
+    }
+  }
+
   return (
-    <AddressContext.Provider value={{ address, setAddress, clearAddress }}>
+    <AddressContext.Provider value={{ address, setAddress, clearAddress, clearVotingData }}>
       {children}
     </AddressContext.Provider>
   );

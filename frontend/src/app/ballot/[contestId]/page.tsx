@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, useParams } from "next/navigation";
 import Link from "next/link";
 import { useIntl, FormattedMessage } from "react-intl";
+import { buildShareUrl, copyShareUrl } from "@/lib/share";
 import CandidateCard from "@/components/CandidateCard";
 import AddressSummary from "@/components/AddressSummary";
 import { fetchBallot, findContestById } from "@/lib/api";
@@ -28,6 +29,7 @@ function ContestCompareContent() {
     (savedAddress ? formatAddress(savedAddress) : "");
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
+  const [includeAddress, setIncludeAddress] = useState(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["ballot", address, electionId],
@@ -38,16 +40,12 @@ function ContestCompareContent() {
   });
 
   function handleShare() {
-    const url = new URL(window.location.href);
-    url.searchParams.set("address", address);
-    navigator.clipboard.writeText(url.toString()).then(
-      () => {
+    copyShareUrl(buildShareUrl(window.location.href, includeAddress, address)).then(
+      (ok) => {
+        if (!ok) { setCopyFailed(true); return; }
         setCopyFailed(false);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-      },
-      () => {
-        setCopyFailed(true);
       }
     );
   }
@@ -120,6 +118,10 @@ function ContestCompareContent() {
           >
             <FormattedMessage id="ballot.share" />
           </button>
+          <label className="text-xs text-gray-600 flex items-center gap-1">
+            <input type="checkbox" checked={includeAddress} onChange={(e) => setIncludeAddress(e.target.checked)} />
+            {intl.formatMessage({ id: "privacy.includeAddress" })}
+          </label>
         </div>
       </div>
 
@@ -132,8 +134,7 @@ function ContestCompareContent() {
             readOnly
             value={(() => {
               const url = new URL(window.location.href);
-              url.searchParams.set("address", address);
-              return url.toString();
+              return buildShareUrl(window.location.href, true, address);
             })()}
             onFocus={(e) => e.currentTarget.select()}
             className="w-full text-xs bg-white border border-yellow-300 rounded px-2 py-1"
