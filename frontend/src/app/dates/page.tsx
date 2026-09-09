@@ -136,7 +136,7 @@ function DateCard({ item, isNextUp }: { item: ElectionDate; isNextUp: boolean })
 
 export default function DatesPage() {
   const searchParams = useSearchParams();
-  const urlAddress = searchParams.get("address") ?? "";
+  const urlAddress = searchParams?.get("address") ?? "";
   const intl = useIntl();
   const { address: savedAddress, setAddress } = useAddress();
   const { electionId } = useElection();
