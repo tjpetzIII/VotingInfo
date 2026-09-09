@@ -1,17 +1,23 @@
 services:
   frontend:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8080
+      secrets:
+        - frontend_env
     ports:
       - "3000:3000"
     depends_on:
       backend:
         condition: service_healthy
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8080
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    env_file:
+      - ./frontend/.env.local
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000 || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -29,3 +35,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+secrets:
+  frontend_env:
+    file: ./frontend/.env.local
