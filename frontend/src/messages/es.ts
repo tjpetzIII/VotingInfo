@@ -36,6 +36,9 @@ const messages: Record<MessageKey, string> = {
   "polling.finder": "Abrir buscador oficial de lugares",
   "polling.available": "Disponible de {start} a {end}",
   "polling.services": "Servicios: {services}",
+  "polling.includeAddress": "Incluir dirección en el enlace compartido",
+  "polling.share": "Compartir lugar",
+  "polling.shared": "Enlace copiado",
 
   "elections.title": "Contiendas y Candidatos",
   "elections.subtitle":

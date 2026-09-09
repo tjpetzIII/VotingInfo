@@ -36,6 +36,9 @@ const messages = {
   "polling.finder": "Open official location finder",
   "polling.available": "Available {start} through {end}",
   "polling.services": "Services: {services}",
+  "polling.includeAddress": "Include address in shared link",
+  "polling.share": "Share location",
+  "polling.shared": "Link copied",
 
   "elections.title": "Contests & Candidates",
   "elections.subtitle":

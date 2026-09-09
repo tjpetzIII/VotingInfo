@@ -1,12 +1,17 @@
 import type { PollingLocation } from "@/lib/api";
 import { useIntl } from "react-intl";
+import { useState } from "react";
+import { buildShareUrl, copyShareUrl } from "@/lib/share";
 
 interface Props {
   location: PollingLocation;
+  address?: string;
 }
 
-export default function PollingLocationCard({ location }: Props) {
+export default function PollingLocationCard({ location, address = "" }: Props) {
   const intl = useIntl();
+  const [includeAddress, setIncludeAddress] = useState(false);
+  const [copied, setCopied] = useState(false);
   const type = location.category === "early_voting" ? intl.formatMessage({ id: "polling.earlyVoting" }) : location.category === "ballot_drop_off" ? intl.formatMessage({ id: "polling.dropOff" }) : intl.formatMessage({ id: "polling.electionDay" });
   const displayName =
     location.location_name ?? location.name ?? "Polling Location";
@@ -47,6 +52,13 @@ export default function PollingLocationCard({ location }: Props) {
           Get Directions →
         </a>
       )}
+      <label className="text-xs text-gray-600 flex items-center gap-2">
+        <input type="checkbox" checked={includeAddress} onChange={(e) => setIncludeAddress(e.target.checked)} />
+        {intl.formatMessage({ id: "polling.includeAddress", defaultMessage: "Include address in shared link" })}
+      </label>
+      <button type="button" className="min-h-11 rounded-lg border px-3 text-sm font-medium" onClick={() => copyShareUrl(buildShareUrl(window.location.href, includeAddress, address)).then(setCopied)}>
+        {copied ? intl.formatMessage({ id: "polling.shared", defaultMessage: "Link copied" }) : intl.formatMessage({ id: "polling.share", defaultMessage: "Share location" })}
+      </button>
     </div>
   );
 }
