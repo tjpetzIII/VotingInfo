@@ -1,19 +1,14 @@
-FROM lukemathwalker/cargo-chef:latest-rust-1-bookworm AS chef
+FROM rust:1.92-bookworm AS builder
 WORKDIR /app
-
-FROM chef AS planner
-COPY . .
-RUN cargo chef prepare --recipe-path recipe.json
-
-FROM chef AS builder
-COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json
-COPY . .
-RUN cargo build --release
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+COPY tests ./tests
+RUN cargo build --release --locked --bin backend --bin healthcheck --bin refresh_worker
 
 FROM gcr.io/distroless/cc-debian12 AS runner
 WORKDIR /app
 COPY --from=builder /app/target/release/backend ./backend
 COPY --from=builder /app/target/release/healthcheck ./healthcheck
+COPY --from=builder /app/target/release/refresh_worker ./refresh_worker
 EXPOSE 8080
 CMD ["./backend"]

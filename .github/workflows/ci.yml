@@ -16,8 +16,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: "backend -> target"
-      - run: cargo test
-      - run: cargo clippy -- -D warnings
+      - run: cargo test --locked
+      - run: cargo clippy --locked -- -D warnings
 
   frontend:
     name: Frontend
@@ -34,6 +34,7 @@ jobs:
           cache-dependency-path: frontend/yarn.lock
       - run: yarn install --frozen-lockfile
       - run: yarn lint
+      - run: npx tsc --noEmit
       - run: yarn test
       - run: yarn build
         env:
