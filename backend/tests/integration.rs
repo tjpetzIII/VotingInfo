@@ -377,6 +377,86 @@ async fn voter_info_polling_locations_include_lat_lng() {
     assert!((loc["lng"].as_f64().unwrap() - -89.6501).abs() < 0.001);
 }
 
+// Five polling locations with distinct addresses (distinct addresses so the geocoder's
+// per-address cache doesn't collapse them into a single lookup).
+fn voter_info_multi_polling_response() -> Value {
+    json!({
+        "election": { "id": "9001", "name": "General Election", "electionDay": "2025-11-04" },
+        "pollingLocations": [
+            { "address": { "line1": "111 First St", "city": "Springfield", "state": "IL", "zip": "62701" } },
+            { "address": { "line1": "222 Second St", "city": "Springfield", "state": "IL", "zip": "62702" } },
+            { "address": { "line1": "333 Third St", "city": "Springfield", "state": "IL", "zip": "62703" } },
+            { "address": { "line1": "444 Fourth St", "city": "Springfield", "state": "IL", "zip": "62704" } },
+            { "address": { "line1": "555 Fifth St", "city": "Springfield", "state": "IL", "zip": "62705" } }
+        ],
+        "contests": []
+    })
+}
+
+fn census_match_response() -> Value {
+    json!({
+        "result": {
+            "input": {},
+            "addressMatches": [{
+                "matchedAddress": "111 MAIN ST, SPRINGFIELD, IL, 62701",
+                "coordinates": { "x": -89.6501, "y": 39.7817 },
+                "addressComponents": {},
+                "tigerLine": {}
+            }]
+        }
+    })
+}
+
+// VOT-61 #1: proves polling-location geocoding runs concurrently, not one-at-a-time. Mocks the
+// (unpaced) Census geocoder with a per-request delay; if the five locations were resolved
+// sequentially the request would take ~5*DELAY, concurrently it takes ~1*DELAY. This distinguishes
+// real parallelism from a merely-unpaced sequential loop (which the geocoder-unit no-pacing test
+// could not). SC-001.
+#[tokio::test]
+async fn voter_info_geocodes_polling_locations_concurrently() {
+    let civic_mock = MockServer::start().await;
+    let geocoder_mock = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/voterinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(voter_info_multi_polling_response()))
+        .mount(&civic_mock)
+        .await;
+
+    let delay = std::time::Duration::from_millis(200);
+    Mock::given(method("GET"))
+        .and(path("/locations/onelineaddress"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_delay(delay)
+                .set_body_json(census_match_response()),
+        )
+        .mount(&geocoder_mock)
+        .await;
+
+    let start = std::time::Instant::now();
+    let response = make_app_with_geocoder(&civic_mock, &geocoder_mock)
+        .oneshot(get("/api/voter-info?address=100+Center+St,+Springfield,+IL+62701"))
+        .await
+        .unwrap();
+    let elapsed = start.elapsed();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    let locs = json["polling_locations"].as_array().unwrap();
+    assert_eq!(locs.len(), 5);
+    for loc in locs {
+        assert!(loc["lat"].is_number(), "every location should be geocoded");
+        assert!(loc["lng"].is_number(), "every location should be geocoded");
+    }
+
+    // Sequential resolution would be >= 5 * 200ms = 1000ms; concurrent should be well under that.
+    assert!(
+        elapsed < std::time::Duration::from_millis(700),
+        "expected concurrent geocoding (~200ms), took {elapsed:?} — locations appear to resolve serially"
+    );
+}
+
 #[tokio::test]
 async fn voter_info_geocoder_sends_correct_user_agent() {
     let civic_mock = MockServer::start().await;

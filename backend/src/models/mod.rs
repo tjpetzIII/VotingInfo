@@ -172,7 +172,7 @@ pub struct RegistrationAddress {
     pub zip: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RegistrationResponse {
     pub available: bool,
     /// Whether same-day / Election Day registration is allowed in this state.

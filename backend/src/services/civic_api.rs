@@ -7,16 +7,64 @@ use serde::Deserialize;
 
 use crate::errors::AppError;
 use crate::models::{
-    AllElectionsResponse, BallotCandidate, BallotContest, BallotLevel, BallotResponse, Candidate,
-    CandidateDetail, Channel, Contest, ContestDetail, Election, ElectionItem, ElectionOfficial,
-    ElectionsResponse, PollingLocation, RegistrationAddress, RegistrationResponse,
-    VoterInfoResponse,
+    AllElectionsResponse, BallotCandidate, BallotContest, BallotLevel, BallotResponse,
+    CampaignFinanceSummary, Candidate, CandidateDetail, Channel, Contest, ContestDetail, Election,
+    ElectionItem, ElectionOfficial, ElectionsResponse, PollingLocation, RegistrationAddress,
+    RegistrationResponse, VoterInfoResponse,
 };
 use crate::services::fec_api::{FecApiClient, FinanceJob};
 use crate::services::geocoder::GeocoderClient;
 use crate::services::state_registration::StateRegistrationService;
 
 const CIVIC_API_BASE: &str = "https://www.googleapis.com/civicinfo/v2";
+
+/// Shared time-to-live for all `CivicApiClient` response caches (15 minutes).
+const CACHE_TTL: Duration = Duration::from_secs(15 * 60);
+
+/// Builds a `moka::future::Cache` with the shared 15-minute TTL. Defining the TTL in one place
+/// keeps the five response caches in `CivicApiClient::build` consistent.
+fn fifteen_min_cache<K, V>() -> Cache<K, V>
+where
+    K: Send + Sync + Eq + std::hash::Hash + 'static,
+    V: Send + Sync + Clone + 'static,
+{
+    Cache::builder().time_to_live(CACHE_TTL).build()
+}
+
+/// Abstracts the pieces `attach_finance` needs from a contest, so the `/api/elections`
+/// (`ContestDetail`) and `/api/ballot` (`BallotContest`) paths share one enrichment routine.
+trait FinanceContest {
+    /// The contest's office title, used to derive the FEC office code.
+    fn office(&self) -> Option<&str>;
+    /// The contest's candidate names, in order.
+    fn candidate_names(&self) -> impl Iterator<Item = &str>;
+    /// Attaches (or clears) the finance summary for the candidate at index `di`.
+    fn set_candidate_finance(&mut self, di: usize, finance: Option<CampaignFinanceSummary>);
+}
+
+impl FinanceContest for ContestDetail {
+    fn office(&self) -> Option<&str> {
+        self.office.as_deref()
+    }
+    fn candidate_names(&self) -> impl Iterator<Item = &str> {
+        self.candidates.iter().map(|c| c.name.as_str())
+    }
+    fn set_candidate_finance(&mut self, di: usize, finance: Option<CampaignFinanceSummary>) {
+        self.candidates[di].campaign_finance = finance;
+    }
+}
+
+impl FinanceContest for BallotContest {
+    fn office(&self) -> Option<&str> {
+        self.office.as_deref()
+    }
+    fn candidate_names(&self) -> impl Iterator<Item = &str> {
+        self.candidates.iter().map(|c| c.name.as_str())
+    }
+    fn set_candidate_finance(&mut self, di: usize, finance: Option<CampaignFinanceSummary>) {
+        self.candidates[di].campaign_finance = finance;
+    }
+}
 
 
 // Raw deserialization types that match Google's JSON shape exactly.
@@ -245,35 +293,15 @@ impl CivicApiClient {
     }
 
     fn build(api_key: String, base_url: String, geocoder: GeocoderClient, fec: FecApiClient) -> Self {
-        let cache = Cache::builder()
-            .time_to_live(Duration::from_secs(15 * 60))
-            .build();
-
-        let elections_cache = Cache::builder()
-            .time_to_live(Duration::from_secs(15 * 60))
-            .build();
-
-        let all_elections_cache = Cache::builder()
-            .time_to_live(Duration::from_secs(15 * 60))
-            .build();
-
-        let registration_cache = Cache::builder()
-            .time_to_live(Duration::from_secs(15 * 60))
-            .build();
-
-        let ballot_cache = Cache::builder()
-            .time_to_live(Duration::from_secs(15 * 60))
-            .build();
-
         Self {
             client: Client::new(),
             api_key,
             base_url,
-            cache,
-            elections_cache,
-            all_elections_cache,
-            registration_cache,
-            ballot_cache,
+            cache: fifteen_min_cache(),
+            elections_cache: fifteen_min_cache(),
+            all_elections_cache: fifteen_min_cache(),
+            registration_cache: fifteen_min_cache(),
+            ballot_cache: fifteen_min_cache(),
             geocoder,
             state_registration: StateRegistrationService::load(),
             fec,
@@ -288,13 +316,28 @@ impl CivicApiClient {
         let raw = self.fetch_raw(address).await?;
         let mut result = map_voter_info(raw);
 
-        for loc in &mut result.polling_locations {
-            if let Some(addr) = &loc.address {
-                let addr = addr.clone();
-                let coords = self.geocoder.geocode(&addr).await;
-                loc.lat = coords.map(|(lat, _)| lat);
-                loc.lng = coords.map(|(_, lng)| lng);
-            }
+        // Resolve polling-location coordinates concurrently rather than one-at-a-time (VOT-61 #1).
+        // Each geocode future borrows `&self.geocoder`, so the unpaced Census-first path overlaps;
+        // any Nominatim fallbacks still serialize behind the geocoder's internal pacing mutex, so
+        // the >=1s Nominatim policy is preserved. Results are keyed by the original index and
+        // scattered back afterward, so polling-location order and values are unchanged.
+        let geocode_jobs: Vec<(usize, String)> = result
+            .polling_locations
+            .iter()
+            .enumerate()
+            .filter_map(|(i, loc)| loc.address.as_ref().map(|addr| (i, addr.clone())))
+            .collect();
+
+        let resolved = futures::future::join_all(
+            geocode_jobs
+                .into_iter()
+                .map(|(i, addr)| async move { (i, self.geocoder.geocode(&addr).await) }),
+        )
+        .await;
+
+        for (i, coords) in resolved {
+            result.polling_locations[i].lat = coords.map(|(lat, _)| lat);
+            result.polling_locations[i].lng = coords.map(|(_, lng)| lng);
         }
 
         self.cache.insert(address.to_string(), result.clone()).await;
@@ -323,7 +366,7 @@ impl CivicApiClient {
 
         let state = extract_state_from_address(address);
         let cycle = fec_cycle_for(&election_day);
-        self.attach_finance_to_election_contests(&mut result.contests, &federal_flags, state.as_deref(), cycle)
+        self.attach_finance(&mut result.contests, |ci| federal_flags[ci], state.as_deref(), cycle)
             .await;
 
         self.elections_cache
@@ -343,7 +386,15 @@ impl CivicApiClient {
 
         let state = extract_state_from_address(address);
         let cycle = fec_cycle_for(&election_day);
-        self.attach_finance_to_ballot_contests(&mut result.contests, state.as_deref(), cycle)
+        // `BallotContest` carries a `level` field, so the Federal gate is a direct field check.
+        // Precomputed into a flags vec (as the elections path does) so the `is_federal` predicate
+        // doesn't need to borrow `contests` while it's borrowed mutably by `attach_finance`.
+        let federal_flags: Vec<bool> = result
+            .contests
+            .iter()
+            .map(|c| c.level == BallotLevel::Federal)
+            .collect();
+        self.attach_finance(&mut result.contests, |ci| federal_flags[ci], state.as_deref(), cycle)
             .await;
 
         self.ballot_cache
@@ -352,15 +403,17 @@ impl CivicApiClient {
         Ok(result)
     }
 
-    /// Enriches `/api/elections` candidates with campaign-finance data. Only attempts a lookup
-    /// for candidates in a Federal-classified contest (`federal_flags`, one entry per contest in
-    /// the same order) whose office title maps to a known FEC office code — this gates the FEC
-    /// call site itself, so no lookup is ever attempted for a state/local candidate (FR-002,
-    /// User Story 3), not merely discarded afterward.
-    async fn attach_finance_to_election_contests(
+    /// Enriches a contest list's candidates with campaign-finance data. A lookup is only attempted
+    /// for candidates whose contest passes the caller-supplied `is_federal(contest_index)` predicate
+    /// AND whose office title maps to a known FEC office code — this gates the FEC call site itself,
+    /// so no lookup is ever attempted for a state/local candidate (FR-002, User Story 3), not merely
+    /// discarded afterward. The `/api/elections` and `/api/ballot` paths share this logic via the
+    /// `FinanceContest` trait; they differ only in how the Federal gate is decided (contest-level
+    /// classification vs. the `BallotLevel::Federal` field), which each passes in as `is_federal`.
+    async fn attach_finance<C: FinanceContest>(
         &self,
-        contests: &mut [ContestDetail],
-        federal_flags: &[bool],
+        contests: &mut [C],
+        is_federal: impl Fn(usize) -> bool,
         state: Option<&str>,
         cycle: u16,
     ) {
@@ -368,16 +421,16 @@ impl CivicApiClient {
         let mut jobs: Vec<FinanceJob> = Vec::new();
 
         for (ci, contest) in contests.iter().enumerate() {
-            if !federal_flags[ci] {
+            if !is_federal(ci) {
                 continue;
             }
-            let Some(office_code) = fec_office_code(contest.office.as_deref()) else {
+            let Some(office_code) = fec_office_code(contest.office()) else {
                 continue;
             };
-            for (di, candidate) in contest.candidates.iter().enumerate() {
+            for (di, name) in contest.candidate_names().enumerate() {
                 jobs.push(FinanceJob {
                     index: targets.len(),
-                    name: candidate.name.clone(),
+                    name: name.to_string(),
                     office_code,
                     state: candidate_state_for_office(office_code, state),
                 });
@@ -391,48 +444,7 @@ impl CivicApiClient {
 
         for (job_index, finance) in self.fec.resolve_batch(cycle, jobs).await {
             let (ci, di) = targets[job_index];
-            contests[ci].candidates[di].campaign_finance = finance;
-        }
-    }
-
-    /// Enriches `/api/ballot` candidates with campaign-finance data. Unlike the elections path,
-    /// `BallotContest` already carries a `level` field (set by `map_ballot`/`classify_level`), so
-    /// the Federal gate is checked directly rather than via a separately-computed flags list —
-    /// same gating guarantee as `attach_finance_to_election_contests` (FR-002, User Story 3).
-    async fn attach_finance_to_ballot_contests(
-        &self,
-        contests: &mut [BallotContest],
-        state: Option<&str>,
-        cycle: u16,
-    ) {
-        let mut targets: Vec<(usize, usize)> = Vec::new();
-        let mut jobs: Vec<FinanceJob> = Vec::new();
-
-        for (ci, contest) in contests.iter().enumerate() {
-            if contest.level != BallotLevel::Federal {
-                continue;
-            }
-            let Some(office_code) = fec_office_code(contest.office.as_deref()) else {
-                continue;
-            };
-            for (di, candidate) in contest.candidates.iter().enumerate() {
-                jobs.push(FinanceJob {
-                    index: targets.len(),
-                    name: candidate.name.clone(),
-                    office_code,
-                    state: candidate_state_for_office(office_code, state),
-                });
-                targets.push((ci, di));
-            }
-        }
-
-        if targets.is_empty() {
-            return;
-        }
-
-        for (job_index, finance) in self.fec.resolve_batch(cycle, jobs).await {
-            let (ci, di) = targets[job_index];
-            contests[ci].candidates[di].campaign_finance = finance;
+            contests[ci].set_candidate_finance(di, finance);
         }
     }
 
@@ -709,43 +721,12 @@ fn state_fallback_registration(
 
     match state_info {
         Some(info) => RegistrationResponse {
-            available: false,
             same_day_registration: Some(info.same_day_registration),
             online_registration: Some(info.online_registration),
-            admin_name: None,
             registration_url: Some(info.registration_url.clone()),
-            registration_confirmation_url: None,
-            registration_deadline: None,
-            election_info_url: None,
-            absentee_voting_info_url: None,
-            voting_location_finder_url: None,
-            ballot_info_url: None,
-            election_rules_url: None,
-            voter_services: vec![],
-            hours_of_operation: None,
-            correspondence_address: None,
-            physical_address: None,
-            election_officials: vec![],
+            ..Default::default()
         },
-        None => RegistrationResponse {
-            available: false,
-            same_day_registration: None,
-            online_registration: None,
-            admin_name: None,
-            registration_url: None,
-            registration_confirmation_url: None,
-            registration_deadline: None,
-            election_info_url: None,
-            absentee_voting_info_url: None,
-            voting_location_finder_url: None,
-            ballot_info_url: None,
-            election_rules_url: None,
-            voter_services: vec![],
-            hours_of_operation: None,
-            correspondence_address: None,
-            physical_address: None,
-            election_officials: vec![],
-        },
+        None => RegistrationResponse::default(),
     }
 }
 
@@ -763,23 +744,10 @@ fn map_registration(
 
     match admin_body {
         None => RegistrationResponse {
-            available: false,
             same_day_registration: state_info.map(|i| i.same_day_registration),
             online_registration: state_info.map(|i| i.online_registration),
-            admin_name: None,
             registration_url: state_info.map(|i| i.registration_url.clone()),
-            registration_confirmation_url: None,
-            registration_deadline: None,
-            election_info_url: None,
-            absentee_voting_info_url: None,
-            voting_location_finder_url: None,
-            ballot_info_url: None,
-            election_rules_url: None,
-            voter_services: vec![],
-            hours_of_operation: None,
-            correspondence_address: None,
-            physical_address: None,
-            election_officials: vec![],
+            ..Default::default()
         },
         Some(body) => RegistrationResponse {
             available: true,

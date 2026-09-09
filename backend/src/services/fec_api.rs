@@ -189,9 +189,18 @@ impl FecApiClient {
         cycle: u16,
     ) -> Option<CampaignFinanceSummary> {
         let candidate_id = self.match_candidate(name, state, office_code, cycle).await?;
-        let mut summary = self.fetch_totals(&candidate_id, cycle).await?;
 
-        if let Some(committee_id) = self.fetch_principal_committee_id(&candidate_id, cycle).await {
+        // `fetch_totals` and `fetch_principal_committee_id` are independent given `candidate_id`,
+        // so run them concurrently (VOT-61 #2). `fetch_top_contributors` depends on the committee
+        // id, so it still runs afterward. Output is unchanged: on no totals we return `None` and
+        // discard the committee id, exactly as the prior sequential `?` early-return did.
+        let (totals, committee_id) = tokio::join!(
+            self.fetch_totals(&candidate_id, cycle),
+            self.fetch_principal_committee_id(&candidate_id, cycle),
+        );
+        let mut summary = totals?;
+
+        if let Some(committee_id) = committee_id {
             summary.top_contributors = self.fetch_top_contributors(&committee_id, cycle).await;
         }
 
