@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useIntl, FormattedMessage } from "react-intl";
+import Link from "next/link";
 import { fetchElectionDates, type ElectionDate, type ResponseMetadata } from "@/lib/api";
 import DataSourceNote from "@/components/DataSourceNote";
 import AddressForm from "@/components/AddressForm";
@@ -180,6 +181,7 @@ export default function DatesPage() {
   return (
     <div className="max-w-6xl mx-auto py-12 px-4">
       <AddressSummary />
+      <Link href="/mail-ballot" className="inline-block text-blue-600 underline mb-4"><FormattedMessage id="mailBallot.title" /></Link>
       <ElectionChooser />
       <div className="flex flex-col md:flex-row md:items-start gap-6">
         <div

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useIntl, FormattedMessage } from "react-intl";
+import Link from "next/link";
 import {
   fetchVoterInfo,
   fetchRegistration,
@@ -244,6 +245,7 @@ export default function VoterInfoPage() {
   return (
     <div className="max-w-6xl mx-auto py-12 px-4">
       <AddressSummary />
+      <Link href="/mail-ballot" className="inline-block text-blue-600 underline mb-4"><FormattedMessage id="mailBallot.title" /></Link>
       {/* Outer row: spacer shrinks to slide form left on md+ */}
       <div className="flex flex-col md:flex-row md:items-start gap-6">
         {/* Spacer — transitions width to push form from center to left on md+ */}

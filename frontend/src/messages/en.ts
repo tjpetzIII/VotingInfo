@@ -200,6 +200,26 @@ const messages = {
   "error.defaultMessage":
     "An unexpected error occurred. Please try again.",
   "error.tryAgain": "Try Again",
+  "mailBallot.title": "Vote by mail",
+  "mailBallot.subtitle": "Follow your official election office's steps. We never collect ballot credentials or report your ballot status.",
+  "mailBallot.state": "Choose your state",
+  "mailBallot.chooseState": "Select a state or DC",
+  "mailBallot.registration": "Check your registration",
+  "mailBallot.registrationHelp": "Confirm your address and eligibility before requesting a ballot.",
+  "mailBallot.registrationLink": "Check registration",
+  "mailBallot.request": "Request or learn eligibility",
+  "mailBallot.requestHelp": "Your election office explains deadlines and accepted request methods.",
+  "mailBallot.requestLink": "Open official request information",
+  "mailBallot.return": "Return your completed ballot",
+  "mailBallot.returnHelp": "Follow your state's envelope, witness, signature, and postmark instructions.",
+  "mailBallot.returnLink": "Open return instructions",
+  "mailBallot.track": "Check official tracking",
+  "mailBallot.trackHelp": "Tracking opens an external official site; verify your status there.",
+  "mailBallot.trackLink": "Open official tracking",
+  "mailBallot.problem": "Get help with a missing or flagged ballot",
+  "mailBallot.problemHelp": "Use official replacement and cure guidance for your jurisdiction.",
+  "mailBallot.problemLink": "Open problem-resolution guidance",
+  "mailBallot.disclaimer": "Links open official resources. VoteReady does not confirm that a ballot was accepted or counted. Checked steps are private on this device and are not submitted.",
 } as const;
 
 export type MessageKey = keyof typeof messages;

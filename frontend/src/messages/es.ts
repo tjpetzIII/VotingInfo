@@ -203,6 +203,26 @@ const messages: Record<MessageKey, string> = {
   "error.defaultMessage":
     "Ocurrió un error inesperado. Por favor, inténtalo de nuevo.",
   "error.tryAgain": "Intentar de nuevo",
+  "mailBallot.title": "Votar por correo",
+  "mailBallot.subtitle": "Sigue los pasos de tu oficina electoral oficial. Nunca recopilamos credenciales ni informamos el estado de tu boleta.",
+  "mailBallot.state": "Elige tu estado",
+  "mailBallot.chooseState": "Selecciona un estado o DC",
+  "mailBallot.registration": "Verifica tu registro",
+  "mailBallot.registrationHelp": "Confirma tu dirección y elegibilidad antes de solicitar una boleta.",
+  "mailBallot.registrationLink": "Verificar registro",
+  "mailBallot.request": "Solicita o conoce tu elegibilidad",
+  "mailBallot.requestHelp": "Tu oficina electoral explica los plazos y métodos aceptados.",
+  "mailBallot.requestLink": "Abrir información oficial de solicitud",
+  "mailBallot.return": "Devuelve tu boleta completa",
+  "mailBallot.returnHelp": "Sigue las instrucciones de tu estado sobre sobre, testigos, firma y matasellos.",
+  "mailBallot.returnLink": "Abrir instrucciones de devolución",
+  "mailBallot.track": "Consulta el rastreo oficial",
+  "mailBallot.trackHelp": "El rastreo abre un sitio oficial externo; verifica allí tu estado.",
+  "mailBallot.trackLink": "Abrir rastreo oficial",
+  "mailBallot.problem": "Obtén ayuda con una boleta perdida o marcada",
+  "mailBallot.problemHelp": "Usa la guía oficial de reemplazo y corrección de tu jurisdicción.",
+  "mailBallot.problemLink": "Abrir guía para resolver problemas",
+  "mailBallot.disclaimer": "Los enlaces abren recursos oficiales. VoteReady no confirma que una boleta fue aceptada o contada. Los pasos marcados son privados en este dispositivo y no se envían.",
 };
 
 export default messages;
