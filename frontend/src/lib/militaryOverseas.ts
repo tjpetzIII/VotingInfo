@@ -1,0 +1,3 @@
+export interface MilitaryOverseasResource { state: string; fpcaUrl: string; fwabUrl: string; stateOfficeUrl: string; review: "fallback" | "reviewed" | "unknown"; }
+const states = ["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"] as const;
+export const militaryOverseasResources: MilitaryOverseasResource[] = states.map((state) => ({ state, fpcaUrl: "https://www.fvap.gov/fpca-embassy", fwabUrl: "https://www.fvap.gov/fwab-eligibility", stateOfficeUrl: `https://www.usa.gov/state-election-office/${state.toLowerCase()}`, review: "fallback" }));
