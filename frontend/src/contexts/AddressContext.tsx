@@ -71,7 +71,11 @@ export function AddressProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      const stored = sessionStorage.getItem(STORAGE_KEY) ?? (localStorage.getItem(PERSISTENCE_KEY) === "true" ? localStorage.getItem(STORAGE_KEY) : null);
+      // Legacy localStorage entries are loaded into this session so an upgrade
+      // does not silently discard a voter's address. They are not treated as
+      // renewed durable consent; future writes remain session-only unless the
+      // user explicitly opts in via `setAddress(..., true)`.
+      const stored = sessionStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(STORAGE_KEY);
       if (!stored) return;
       const parsed: unknown = JSON.parse(stored);
       if (isSavedAddress(parsed)) {

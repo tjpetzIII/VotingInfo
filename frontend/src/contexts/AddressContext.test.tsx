@@ -38,6 +38,7 @@ function renderProbe() {
 describe("AddressContext", () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   it("defaults to null when localStorage is empty", () => {
@@ -53,14 +54,14 @@ describe("AddressContext", () => {
     );
   });
 
-  it("setAddress updates state and persists to localStorage", async () => {
+  it("setAddress updates state and persists when explicitly opted in", async () => {
     const user = userEvent.setup();
     renderProbe();
 
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(screen.getByTestId("address")).toHaveTextContent("123 Main St, Austin, TX 78701");
-    expect(JSON.parse(localStorage.getItem("address")!)).toEqual(SAMPLE);
+    expect(JSON.parse(sessionStorage.getItem("address")!)).toEqual(SAMPLE);
   });
 
   it("clearAddress resets to null and removes the persisted entry", async () => {

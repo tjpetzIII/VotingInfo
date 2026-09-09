@@ -67,6 +67,7 @@ function renderContest() {
 describe("ContestComparePage (ballot detail)", () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     setSearch("");
     setParams({ contestId: "1" });
   });
@@ -103,6 +104,7 @@ describe("ContestComparePage (ballot detail)", () => {
     expect(await screen.findByText("Jane Doe")).toBeInTheDocument();
     expect(screen.getByText("President")).toBeInTheDocument();
 
+    await user.click(screen.getByRole("checkbox", { name: "Include address in shared link" }));
     await user.click(screen.getByRole("button", { name: "Share" }));
 
     const copiedUrl = new URL(writeText.mock.calls[0][0] as string);

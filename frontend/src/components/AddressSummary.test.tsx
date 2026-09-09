@@ -21,6 +21,7 @@ function renderSummary() {
 describe("AddressSummary", () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   it("renders nothing when there is no saved address", () => {
@@ -56,10 +57,10 @@ describe("AddressSummary", () => {
     await user.type(screen.getByLabelText("Street Address"), "999 New Rd");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    // Form is hidden again and the new address is now in effect and persisted.
+    // Form is hidden again and the new address is now in effect for this session.
     expect(screen.queryByLabelText("Street Address")).not.toBeInTheDocument();
     expect(screen.getByText("Using: 999 New Rd, Austin, TX 78701")).toBeInTheDocument();
-    expect(JSON.parse(localStorage.getItem("address")!).street).toBe("999 New Rd");
+    expect(JSON.parse(sessionStorage.getItem("address")!).street).toBe("999 New Rd");
   });
 
   it("an invalid submit shows the inline error and leaves the saved address unchanged", async () => {
@@ -73,7 +74,7 @@ describe("AddressSummary", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByText("ZIP must be 5 digits.")).toBeInTheDocument();
-    // Still editing, and the persisted address is untouched.
+    // Still editing, and the saved address is untouched.
     expect(screen.getByLabelText("Street Address")).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem("address")!).zip).toBe("78701");
   });
