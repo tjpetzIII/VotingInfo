@@ -172,6 +172,7 @@ const messages: Record<MessageKey, string> = {
   "dataSource.state_scraper": "Fuente: la oficina electoral de tu estado",
   "dataSource.mixed": "Fuentes: Información Cívica de Google y la oficina electoral de tu estado",
   "dataSource.cached": "Información cargada de una consulta reciente",
+  "dataSource.fallback": "Parte de la información usa una fuente alternativa",
 
   "notFound.title": "Página no encontrada",
   "notFound.description": "La página que buscas no existe.",

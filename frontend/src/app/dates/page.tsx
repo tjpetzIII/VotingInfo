@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useIntl, FormattedMessage } from "react-intl";
-import { fetchElectionDates, type ElectionDate } from "@/lib/api";
+import { fetchElectionDates, type ElectionDate, type ResponseMetadata } from "@/lib/api";
+import DataSourceNote from "@/components/DataSourceNote";
 import AddressForm from "@/components/AddressForm";
 import AddressSummary from "@/components/AddressSummary";
 import ElectionChooser from "@/components/ElectionChooser";
@@ -119,17 +120,22 @@ export default function DatesPage() {
   const { electionId } = useElection();
   const [loading, setLoading] = useState(false);
   const [dates, setDates] = useState<ElectionDate[] | null>(null);
+  const [metadata, setMetadata] = useState<ResponseMetadata | undefined>();
   const [error, setError] = useState<string | null>(null);
   const requestRef = useRef(0);
 
   const runFetch = useCallback(async (address: string) => {
     const requestId = ++requestRef.current;
     setDates(null);
+    setMetadata(undefined);
     setError(null);
     setLoading(true);
     try {
       const result = await fetchElectionDates(address, electionId ?? undefined);
-      if (requestId === requestRef.current) setDates(result.dates);
+      if (requestId === requestRef.current) {
+        setDates(result.dates);
+        setMetadata(result.metadata);
+      }
     } catch (e) {
       if (requestId === requestRef.current) {
         setError(e instanceof Error ? e.message : "Something went wrong.");
@@ -196,10 +202,13 @@ export default function DatesPage() {
             )}
 
             {dates && dates.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
-                {dates.map((item, i) => (
-                  <DateCard key={`${item.category}-${item.date}`} item={item} isNextUp={i === nextUpIndex} />
-                ))}
+              <div>
+                <DataSourceNote metadata={metadata} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start mt-2">
+                  {dates.map((item, i) => (
+                    <DateCard key={`${item.category}-${item.date}`} item={item} isNextUp={i === nextUpIndex} />
+                  ))}
+                </div>
               </div>
             )}
           </div>

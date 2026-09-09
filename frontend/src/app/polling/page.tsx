@@ -18,6 +18,7 @@ const PollingMap = dynamic(() => import("@/components/PollingMap"), {
   loading: () => <div className="h-80 bg-gray-200 rounded-2xl animate-pulse" />,
 });
 import PollingLocationCard from "@/components/PollingLocationCard";
+import DataSourceNote from "@/components/DataSourceNote";
 
 type PageState =
   | { status: "idle" }
@@ -121,6 +122,7 @@ export default function PollingPage() {
             </p>
             <p className="font-semibold text-gray-900">{pageState.data.election.name}</p>
             <p className="text-sm text-gray-500">{pageState.data.election.election_day}</p>
+            <DataSourceNote metadata={pageState.data.metadata} />
           </div>
 
           {pageState.data.polling_locations.length === 0 ? (

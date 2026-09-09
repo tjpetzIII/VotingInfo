@@ -12,6 +12,7 @@ import {
 } from "@/lib/api";
 import AddressForm from "@/components/AddressForm";
 import AddressSummary from "@/components/AddressSummary";
+import DataSourceNote from "@/components/DataSourceNote";
 import {
   useAddress,
   formatAddress as formatSavedAddress,
@@ -277,7 +278,10 @@ export default function VoterInfoPage() {
             </div>
           )}
 
-          {voterInfoResult && (
+                  {voterInfoResult && (
+                    <DataSourceNote metadata={voterInfoResult.metadata} className="col-span-full" />
+                  )}
+                  {voterInfoResult && (
             <>
               {/* Election name — full width banner */}
               <div className="col-span-full bg-white rounded-2xl shadow-md p-6 flex items-center justify-between gap-4">
@@ -363,6 +367,7 @@ export default function VoterInfoPage() {
                 <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
                   {/* Status + CTA */}
                   <div className="bg-white rounded-2xl shadow-md p-6 flex flex-col gap-4">
+                    <DataSourceNote metadata={registrationResult.metadata} />
                     <StatusBadge
                       available={registrationResult.available}
                       hasUrl={!!registrationResult.registration_url}

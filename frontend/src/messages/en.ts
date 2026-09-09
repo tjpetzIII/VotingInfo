@@ -169,6 +169,7 @@ const messages = {
   "dataSource.state_scraper": "Source: your state's election office",
   "dataSource.mixed": "Sources: Google Civic Information and your state's election office",
   "dataSource.cached": "Information loaded from a recent lookup",
+  "dataSource.fallback": "Some information uses a fallback source",
 
   "notFound.title": "Page not found",
   "notFound.description": "The page you're looking for doesn't exist.",
