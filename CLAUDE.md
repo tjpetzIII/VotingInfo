@@ -82,7 +82,7 @@ Address format sent to the backend: `"${street}, ${city}, ${state} ${zip}"` — 
 
 ### Backend (`backend/`)
 
-Rust 1.92 + Axum 0.7, listening on `0.0.0.0:8080`. Module layout:
+Rust 1.92 + Axum 0.8, listening on `0.0.0.0:8080`. Module layout:
 
 ```
 src/

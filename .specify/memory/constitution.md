@@ -111,7 +111,7 @@ incidents.
 
 ## Technology & Deployment Constraints
 
-- Backend: Rust 1.92, Axum 0.7, listening on `0.0.0.0:8080`.
+- Backend: Rust 1.92, Axum 0.8, listening on `0.0.0.0:8080`.
 - Frontend: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 3, using `next.config.mjs`
   (`.ts` config is not supported by this Next.js version).
 - Frontend production builds MUST set `output: "standalone"` to support the Docker image.
