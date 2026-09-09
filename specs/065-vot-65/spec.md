@@ -1,6 +1,6 @@
 # Feature Specification: Typed election deadlines
 
-**Feature Branch**: `codex/vot-65`  
+**Feature Branch**: `codex/vot-65`
 **Created**: 2026-09-09
 
 ## User Story
