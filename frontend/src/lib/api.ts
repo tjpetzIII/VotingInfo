@@ -1,4 +1,9 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+export async function subscribeReminder(email: string, address: string): Promise<{ status: string }> {
+  const res = await fetch(`${API_BASE}/api/reminders/subscribe`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, address, consent: true }) });
+  if (!res.ok) throw new Error("REMINDER_SUBSCRIBE_FAILED");
+  return res.json();
+}
 
 export type DataProvenance =
   | "civic_api"

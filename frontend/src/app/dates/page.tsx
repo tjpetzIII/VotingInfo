@@ -11,6 +11,7 @@ import AddressForm from "@/components/AddressForm";
 import AddressSummary from "@/components/AddressSummary";
 import ElectionChooser from "@/components/ElectionChooser";
 import { useElection } from "@/contexts/ElectionContext";
+import ReminderSignup from "@/components/ReminderSignup";
 import {
   useAddress,
   formatAddress,
@@ -253,6 +254,7 @@ export default function DatesPage() {
           </div>
         )}
       </div>
+      <div className="mt-8"><ReminderSignup /></div>
     </div>
   );
 }

@@ -216,6 +216,13 @@ const messages: Record<MessageKey, string> = {
   "error.defaultMessage":
     "Ocurrió un error inesperado. Por favor, inténtalo de nuevo.",
   "error.tryAgain": "Intentar de nuevo",
+  "reminders.title": "Recibe recordatorios electorales",
+  "reminders.subtitle": "Usaremos tu dirección para adaptar los recordatorios. Puedes cancelar cada correo.",
+  "reminders.email": "Correo electrónico",
+  "reminders.consent": "Acepto recibir recordatorios electorales.",
+  "reminders.submit": "Registrarme",
+  "reminders.success": "Te registraste. El correo de confirmación incluirá un enlace para cancelar.",
+  "reminders.error": "Ingresa un correo válido, confirma tu consentimiento y verifica que haya una dirección disponible.",
   "voted.title": "Crea una insignia de voté",
   "voted.subtitle": "Crea una insignia para compartir sin ingresar tu dirección.",
   "voted.badge": "YO VOTÉ",

@@ -14,7 +14,10 @@ use axum::{
 use serde_json::{json, Value};
 
 use services::{
-    civic_api::CivicApiClient, scraper_utils::STATE_SCRAPERS, supabase::SupabaseClient,
+    civic_api::CivicApiClient,
+    notifications::{NoopEmailProvider, NotificationService},
+    scraper_utils::STATE_SCRAPERS,
+    supabase::SupabaseClient,
 };
 
 /// Shared application state.
@@ -22,6 +25,7 @@ use services::{
 pub struct AppState {
     pub civic: Arc<CivicApiClient>,
     pub supabase: Arc<SupabaseClient>,
+    pub notifications: Arc<NotificationService<NoopEmailProvider>>,
 }
 
 impl AppState {
@@ -29,6 +33,7 @@ impl AppState {
         Self {
             civic,
             supabase: Arc::new(SupabaseClient::new()),
+            notifications: Arc::new(NotificationService::new(NoopEmailProvider)),
         }
     }
 }
@@ -86,7 +91,8 @@ pub fn api_router() -> Router<AppState> {
         .route(
             "/api/refresh",
             axum::routing::post(routes::scraper::manual_refresh),
-        );
+        )
+        .route("/api/reminders/subscribe", axum::routing::post(routes::reminders::subscribe));
 
     for config in STATE_SCRAPERS {
         let lower = config.lower();

@@ -54,6 +54,15 @@ impl<P: EmailProvider> NotificationService<P> {
         if !email.contains('@') || email.len() > 254 || address.trim().is_empty() {
             return Err("invalid subscriber details".into());
         }
+        if let Some(existing) = self
+            .subscribers
+            .lock()
+            .map_err(|_| "subscriber lock poisoned".to_string())?
+            .get(&email)
+            .cloned()
+        {
+            return Ok(existing);
+        }
         let mut bytes = [0u8; 32];
         rand::rng().fill_bytes(&mut bytes);
         let token = bytes.iter().map(|b| format!("{b:02x}")).collect::<String>();

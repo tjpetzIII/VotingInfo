@@ -215,6 +215,13 @@ const messages = {
   "error.defaultMessage":
     "An unexpected error occurred. Please try again.",
   "error.tryAgain": "Try Again",
+  "reminders.title": "Get election reminders",
+  "reminders.subtitle": "We will use your address context to tailor reminders. You can unsubscribe from every email.",
+  "reminders.email": "Email address",
+  "reminders.consent": "I agree to receive election reminders.",
+  "reminders.submit": "Sign up",
+  "reminders.success": "You're signed up. A confirmation email will include an unsubscribe link.",
+  "reminders.error": "Enter a valid email, confirm consent, and make sure an address is available.",
   "voted.title": "Create an I Voted badge",
   "voted.subtitle": "Make a shareable badge without entering your address.",
   "voted.badge": "I VOTED",

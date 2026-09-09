@@ -23,6 +23,7 @@ const PollingMap = dynamic(() => import("@/components/PollingMap"), {
 });
 import PollingLocationCard from "@/components/PollingLocationCard";
 import DataSourceNote from "@/components/DataSourceNote";
+import ReminderSignup from "@/components/ReminderSignup";
 
 type PageState =
   | { status: "idle" }
@@ -177,6 +178,7 @@ export default function PollingPage() {
           ); })()}
         </div>
       )}
+      <div className="mt-8"><ReminderSignup /></div>
     </div>
   );
 }
