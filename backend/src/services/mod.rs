@@ -8,6 +8,7 @@ pub mod fec_api;
 pub mod fl_scraper;
 pub mod ga_scraper;
 pub mod geocoder;
+pub mod notifications;
 pub mod mi_scraper;
 pub mod nc_scraper;
 pub mod nv_scraper;

@@ -161,6 +161,7 @@ dependencies = [
  "futures",
  "http-body-util",
  "moka",
+ "rand 0.9.5",
  "reqwest",
  "scraper",
  "serde",
