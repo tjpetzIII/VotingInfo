@@ -57,8 +57,7 @@ pub async fn subscribe(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::services::notifications::TestEmailProvider;
+    use crate::services::notifications::{NotificationService, TestEmailProvider};
     #[test]
     fn confirmation_contains_unsubscribe() {
         let s = NotificationService::new(TestEmailProvider::default());
