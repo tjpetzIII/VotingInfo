@@ -1,5 +1,11 @@
 # Dependency audit evidence
 
+## VOT-46 frontend Zod snapshot (2026-09-09)
+
+`frontend/package.json` declares `zod: ^4`, and `frontend/yarn.lock` resolves Zod 4.4.3. The installed `@hookform/resolvers` range accepts both Zod 3.25+ and Zod 4, so the login form's existing `zodResolver` integration is compatible. No manifest, lockfile, or application source change is required for this audit.
+
+Re-evaluate this note if the direct Zod range, resolver package, or login form validation integration changes.
+
 ## VOT-40 native backend snapshot (2026-09-09)
 
 This note records applicability for the native `backend` checkout at review time. It is evidence about the current manifest and target selection, not a blanket statement that the advisories are harmless for every Cargo target or future configuration.
