@@ -1,5 +1,6 @@
 use rand::RngCore;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -95,6 +96,73 @@ impl<P: EmailProvider> NotificationService<P> {
     pub fn send(&self, to: &str, subject: &str, body: &str) -> Result<(), String> {
         self.provider.send(to, subject, body)
     }
+
+    pub fn subscriber(&self, email: &str) -> Option<Subscriber> {
+        self.subscribers
+            .lock()
+            .ok()?
+            .get(&email.trim().to_ascii_lowercase())
+            .cloned()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReminderEvent {
+    pub id: String,
+    pub date: String,
+    pub email: String,
+    pub subject: String,
+    pub body: String,
+}
+
+#[derive(Clone)]
+pub struct ReminderScheduler<P: EmailProvider> {
+    service: NotificationService<P>,
+    delivered: Arc<Mutex<HashSet<String>>>,
+}
+
+impl<P: EmailProvider> ReminderScheduler<P> {
+    pub fn new(service: NotificationService<P>) -> Self {
+        Self {
+            service,
+            delivered: Arc::new(Mutex::new(HashSet::new())),
+        }
+    }
+    pub fn run_due(&self, events: &[ReminderEvent], today: &str, max_attempts: usize) -> usize {
+        let mut sent = 0;
+        for event in events.iter().filter(|event| event.date == today) {
+            let Some(subscriber) = self.service.subscriber(&event.email) else {
+                continue;
+            };
+            let key = format!("{}:{}:{}", subscriber.email, event.id, event.date);
+            if self
+                .delivered
+                .lock()
+                .map(|set| set.contains(&key))
+                .unwrap_or(true)
+            {
+                continue;
+            }
+            let mut delivered = false;
+            for _ in 0..max_attempts.max(1) {
+                if self
+                    .service
+                    .send(&subscriber.email, &event.subject, &event.body)
+                    .is_ok()
+                {
+                    delivered = true;
+                    break;
+                }
+            }
+            if delivered {
+                if let Ok(mut set) = self.delivered.lock() {
+                    set.insert(key);
+                }
+                sent += 1;
+            }
+        }
+        sent
+    }
 }
 #[cfg(test)]
 mod tests {
@@ -125,6 +193,34 @@ mod tests {
         let sent = p.sent.clone();
         NotificationService::new(p)
             .send("a@b.test", "subject", "body")
+            .unwrap();
+        assert_eq!(sent.lock().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn scheduler_is_idempotent_and_honors_unsubscribe() {
+        let provider = TestEmailProvider::default();
+        let sent = provider.sent.clone();
+        let service = NotificationService::new(provider);
+        let item = service.subscribe("a@b.test", "1 Main", "now").unwrap();
+        let scheduler = ReminderScheduler::new(service.clone());
+        let event = ReminderEvent {
+            id: "e1".into(),
+            date: "2026-11-01".into(),
+            email: item.email.clone(),
+            subject: "Reminder".into(),
+            body: "Election".into(),
+        };
+        assert_eq!(
+            scheduler.run_due(std::slice::from_ref(&event), "2026-11-01", 2),
+            1
+        );
+        assert_eq!(
+            scheduler.run_due(std::slice::from_ref(&event), "2026-11-01", 2),
+            0
+        );
+        service
+            .unsubscribe(&item.email, &item.unsubscribe_token)
             .unwrap();
         assert_eq!(sent.lock().unwrap().len(), 1);
     }
