@@ -228,6 +228,9 @@ export interface BallotContest {
   district: string | null;
   level: BallotLevel;
   candidates: BallotCandidate[];
+  measure_title?: string;
+  measure_text?: string;
+  measure_url?: string;
 }
 
 export interface BallotResponse {

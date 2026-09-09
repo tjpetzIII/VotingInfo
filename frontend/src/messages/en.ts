@@ -1,4 +1,5 @@
 const messages = {
+  "measure.explain": "Explain this ballot measure", "measure.hide": "Hide measure explanation", "measure.official": "Read official measure text", "measure.neutral": "This information is provided for context. Vote according to your own views.", "measure.unavailable": "An official explanation is not available for this measure.",
   "plan.title": "My Voting Plan",
   "plan.subtitle": "Keep a private checklist for election day.",
   "plan.method": "Voting method", "plan.choose": "Choose a method", "plan.inPerson": "Election day", "plan.early": "Early voting", "plan.mail": "Mail ballot", "plan.date": "Voting date", "plan.site": "Voting site", "plan.checklist": "My checklist", "plan.registration": "I checked my registration", "plan.identification": "I have required identification", "plan.planTime": "I planned when to vote", "plan.print": "Print plan", "plan.reset": "Reset plan", "plan.stale": "Election information changed. Review your plan.",

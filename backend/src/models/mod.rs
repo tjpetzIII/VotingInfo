@@ -218,6 +218,12 @@ pub struct BallotContest {
     pub district: Option<String>,
     pub level: BallotLevel,
     pub candidates: Vec<BallotCandidate>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub measure_title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub measure_text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub measure_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -568,6 +574,9 @@ mod tests {
             district: None,
             level: BallotLevel::Local,
             candidates: vec![],
+            measure_title: None,
+            measure_text: None,
+            measure_url: None,
         };
         let json = serde_json::to_value(&contest).unwrap();
         let obj = json.as_object().unwrap();

@@ -8,6 +8,7 @@ import { useIntl, FormattedMessage } from "react-intl";
 import AddressForm from "@/components/AddressForm";
 import AddressSummary from "@/components/AddressSummary";
 import CandidateCard from "@/components/CandidateCard";
+import BallotMeasureExplainer from "@/components/BallotMeasureExplainer";
 import ElectionTypeBanner from "@/components/ElectionTypeBanner";
 import { fetchBallot, type BallotContest, type BallotLevel } from "@/lib/api";
 import ElectionChooser from "@/components/ElectionChooser";
@@ -193,6 +194,8 @@ function ContestBlock({ contest, address }: { contest: BallotContest; address: s
       >
         {title}
       </Link>
+
+      <BallotMeasureExplainer contest={contest} />
 
       {contest.candidates.length === 0 ? (
         <p className="text-gray-500 text-sm">

@@ -156,6 +156,12 @@ struct ApiContest {
     level: Vec<String>,
     #[serde(default)]
     candidates: Vec<ApiCandidate>,
+    #[serde(rename = "referendumTitle")]
+    referendum_title: Option<String>,
+    #[serde(rename = "referendumText")]
+    referendum_text: Option<String>,
+    #[serde(rename = "referendumUrl")]
+    referendum_url: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -1081,6 +1087,9 @@ fn map_ballot(raw: ApiVoterInfoResponse) -> BallotResponse {
                         campaign_finance: None,
                     })
                     .collect(),
+                measure_title: c.referendum_title,
+                measure_text: c.referendum_text,
+                measure_url: c.referendum_url,
             }
         })
         .collect();
@@ -1316,6 +1325,9 @@ mod ballot_tests {
             }),
             level: vec![],
             candidates: vec![],
+            referendum_title: None,
+            referendum_text: None,
+            referendum_url: None,
         }
     }
 
