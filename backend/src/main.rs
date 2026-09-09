@@ -3,11 +3,16 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::middleware as axum_middleware;
-use tower_governor::{governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor, GovernorLayer};
+use tower_governor::{
+    governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor, GovernorError,
+    GovernorLayer,
+};
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use backend::{api_router, health_router, middleware, AppState, services::civic_api::CivicApiClient};
+use backend::{
+    api_router, health_router, middleware, services::civic_api::CivicApiClient, AppState,
+};
 
 #[tokio::main]
 async fn main() {
@@ -49,7 +54,10 @@ async fn main() {
     );
 
     let api_routes = api_router()
-        .layer(GovernorLayer::new(governor_conf))
+        .layer(
+            GovernorLayer::new(governor_conf)
+                .error_handler(|error: GovernorError| middleware::governor_error_response(error)),
+        )
         .with_state(state.clone());
 
     let app = health_router()

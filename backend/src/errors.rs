@@ -18,7 +18,7 @@ pub enum AppError {
     Config(String),
     #[error("Invalid request: {0}")]
     ValidationError(String),
-    #[error("Rate limit exceeded. Please wait before retrying.")]
+    #[error("Too many requests")]
     RateLimited,
     #[error("Scraper failed to parse page: {0}")]
     ScraperError(String),
@@ -47,22 +47,22 @@ impl IntoResponse for AppError {
             AppError::ExternalApiError { .. } => (
                 StatusCode::BAD_GATEWAY,
                 "EXTERNAL_API_ERROR",
-                self.to_string(),
+                "The external service is temporarily unavailable.".to_string(),
             ),
             AppError::Reqwest(_) => (
                 StatusCode::BAD_GATEWAY,
                 "EXTERNAL_API_ERROR",
-                self.to_string(),
+                "The external service is temporarily unavailable.".to_string(),
             ),
             AppError::Config(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "CONFIG_ERROR",
-                self.to_string(),
+                "The service is temporarily unavailable.".to_string(),
             ),
             AppError::ScraperError(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "SCRAPER_ERROR",
-                self.to_string(),
+                "Election information is temporarily unavailable.".to_string(),
             ),
             AppError::InvalidElectionId => (
                 StatusCode::UNPROCESSABLE_ENTITY,
@@ -128,5 +128,40 @@ mod tests {
             status(AppError::Config("MISSING_KEY".into())),
             StatusCode::INTERNAL_SERVER_ERROR
         );
+    }
+
+    #[tokio::test]
+    async fn upstream_details_are_not_sent_to_clients() {
+        use http_body_util::BodyExt;
+
+        let response = AppError::ExternalApiError {
+            status: 403,
+            message: "api_key=secret-value https://example.test/private".into(),
+        }
+        .into_response();
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body = String::from_utf8(body.to_vec()).unwrap();
+
+        assert!(!body.contains("secret-value"));
+        assert!(!body.contains("example.test"));
+        assert!(body.contains("EXTERNAL_API_ERROR"));
+    }
+
+    #[tokio::test]
+    async fn transport_details_are_not_sent_to_clients() {
+        use http_body_util::BodyExt;
+
+        let response = AppError::Reqwest(
+            reqwest::Client::new()
+                .get("http://[::1")
+                .build()
+                .unwrap_err(),
+        )
+        .into_response();
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body = String::from_utf8(body.to_vec()).unwrap();
+
+        assert!(!body.contains("secret-value"));
+        assert!(body.contains("EXTERNAL_API_ERROR"));
     }
 }
