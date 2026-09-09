@@ -13,6 +13,11 @@ const messages: Record<MessageKey, string> = {
   "electionChooser.error": "No se pudieron encontrar elecciones para esta dirección. Intenta de nuevo.",
   "header.tagline": "— Tu guía de información electoral",
   "footer.copyright": "© {year} VoteReady. Empoderando votantes en todas partes.",
+  "invite.title": "Invita a un amigo a VoteReady",
+  "invite.subtitle": "Comparte un enlace privado para ayudar a alguien a encontrar información electoral.",
+  "invite.includeAddress": "Incluir el contexto de mi dirección",
+  "invite.share": "Invitar a un amigo",
+  "invite.result": "Tu invitación está lista.",
 
   "home.title": "Todas las Elecciones",
   "home.subtitle": "Elecciones disponibles de la API de Información Cívica de Google.",

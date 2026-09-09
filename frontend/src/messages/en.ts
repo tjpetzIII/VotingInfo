@@ -13,6 +13,11 @@ const messages = {
   "electionChooser.error": "We couldn't find elections for this address. Try again.",
   "header.tagline": "— Your voter information guide",
   "footer.copyright": "© {year} VoteReady. Empowering voters everywhere.",
+  "invite.title": "Invite a friend to VoteReady",
+  "invite.subtitle": "Share a private link to help someone find voter information.",
+  "invite.includeAddress": "Include my address context",
+  "invite.share": "Invite a friend",
+  "invite.result": "Your invite is ready.",
 
   "home.title": "All Elections",
   "home.subtitle": "Available elections from the Google Civic Information API.",

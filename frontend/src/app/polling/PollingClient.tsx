@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import AddressForm from "@/components/AddressForm";
 import AddressSummary from "@/components/AddressSummary";
+import InviteFriend from "@/components/InviteFriend";
 import ElectionChooser from "@/components/ElectionChooser";
 import { useElection } from "@/contexts/ElectionContext";
 import {
@@ -110,6 +111,7 @@ export default function PollingPage() {
       </p>
 
       <AddressSummary />
+      <InviteFriend />
       <ElectionChooser />
 
       <div className="bg-white rounded-2xl shadow-md p-6 mb-8">

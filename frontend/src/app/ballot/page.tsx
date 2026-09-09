@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useIntl, FormattedMessage } from "react-intl";
 import AddressForm from "@/components/AddressForm";
 import AddressSummary from "@/components/AddressSummary";
+import InviteFriend from "@/components/InviteFriend";
 import CandidateCard from "@/components/CandidateCard";
 import BallotMeasureExplainer from "@/components/BallotMeasureExplainer";
 import ElectionTypeBanner from "@/components/ElectionTypeBanner";
@@ -97,6 +98,7 @@ function BallotContent() {
 
       <div className="mt-6">
         <AddressSummary />
+        <InviteFriend />
       </div>
 
       <ElectionChooser />
