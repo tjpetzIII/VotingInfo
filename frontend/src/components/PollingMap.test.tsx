@@ -41,15 +41,7 @@ describe("PollingMap", () => {
     expect(map).toHaveAttribute("data-zoom", "4");
   });
 
-  it("geocodes locations and renders a marker for each result", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => [{ lat: "30.2711", lon: "-97.7437" }],
-      })
-    );
-
+  it("renders supplied coordinates as markers", async () => {
     render(
       <PollingMap
         locations={[
@@ -58,6 +50,8 @@ describe("PollingMap", () => {
             location_name: "City Hall Annex",
             address: "1 Center Plaza, Austin, TX",
             hours: "7am-8pm",
+            lat: 30.2711,
+            lng: -97.7437,
           },
         ]}
       />
