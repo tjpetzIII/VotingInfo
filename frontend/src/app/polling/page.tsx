@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useIntl } from "react-intl";
 import dynamic from "next/dynamic";
 import AddressForm from "@/components/AddressForm";
 import AddressSummary from "@/components/AddressSummary";
@@ -29,8 +30,10 @@ type PageState =
 export default function PollingPage() {
   const { address: savedAddress, setAddress } = useAddress();
   const { electionId } = useElection();
+  const intl = useIntl();
   const [pageState, setPageState] = useState<PageState>({ status: "idle" });
   const requestRef = useRef(0);
+  const [category, setCategory] = useState<"election_day" | "early_voting" | "ballot_drop_off">("election_day");
 
   const runFetch = useCallback(async (address: string) => {
     const requestId = ++requestRef.current;
@@ -125,21 +128,34 @@ export default function PollingPage() {
             <DataSourceNote metadata={pageState.data.metadata} />
           </div>
 
-          {pageState.data.polling_locations.length === 0 ? (
+          {pageState.data.mail_only && <div className="p-4 bg-blue-50 border border-blue-200 text-blue-800 rounded-xl text-sm">{intl.formatMessage({ id: "polling.mailOnly" })}</div>}
+          <div className="flex flex-wrap gap-2" role="group" aria-label={intl.formatMessage({ id: "polling.locationType" })}>
+            {(["election_day", "early_voting", "ballot_drop_off"] as const).map((key) => (
+              <button key={key} type="button" onClick={() => setCategory(key)} aria-pressed={category === key} className={`min-h-11 rounded-full px-4 text-sm font-medium border ${category === key ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-700 border-gray-300"}`}>
+                {key === "election_day" ? intl.formatMessage({ id: "polling.electionDay" }) : key === "early_voting" ? intl.formatMessage({ id: "polling.earlyVoting" }) : intl.formatMessage({ id: "polling.dropOff" })}
+              </button>
+            ))}
+          </div>
+
+          {(() => {
+            const locations = category === "election_day" ? pageState.data.polling_locations : category === "early_voting" ? (pageState.data.early_vote_sites ?? []) : (pageState.data.drop_off_locations ?? []);
+            const categoryLabel = category === "election_day" ? intl.formatMessage({ id: "polling.electionDay" }) : category === "early_voting" ? intl.formatMessage({ id: "polling.earlyVoting" }) : intl.formatMessage({ id: "polling.dropOff" });
+            return locations.length === 0 ? (
             <div className="p-4 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-xl text-sm">
-              No polling locations found for this address.
+              {intl.formatMessage({ id: "polling.empty" }, { type: categoryLabel.toLowerCase() })}
+              {pageState.data.voting_location_finder_url && <a className="block underline mt-2" href={pageState.data.voting_location_finder_url} target="_blank" rel="noopener noreferrer">{intl.formatMessage({ id: "polling.finder" })}</a>}
             </div>
           ) : (
             <>
-              <PollingMap locations={pageState.data.polling_locations} />
-              <h2 className="sr-only">Polling Locations</h2>
+              <PollingMap locations={locations} />
+              <h2 className="sr-only">Voting Locations</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {pageState.data.polling_locations.map((loc, i) => (
+                {locations.map((loc, i) => (
                   <PollingLocationCard key={i} location={loc} />
                 ))}
               </div>
             </>
-          )}
+          ); })()}
         </div>
       )}
     </div>

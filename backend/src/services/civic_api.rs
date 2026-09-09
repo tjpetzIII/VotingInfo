@@ -8,10 +8,10 @@ use serde::Deserialize;
 use crate::errors::AppError;
 use crate::models::{
     AllElectionsResponse, BallotCandidate, BallotContest, BallotLevel, BallotResponse,
-    CampaignFinanceSummary, Candidate, CandidateDetail, Channel, Contest, ContestDetail, Election,
-    DataProvenance, ElectionChoicesResponse, ElectionItem, ElectionOfficial, ElectionsResponse,
-    PollingLocation, RegistrationAddress, RegistrationResponse, ResponseMetadata,
-    VoterInfoResponse,
+    CampaignFinanceSummary, Candidate, CandidateDetail, Channel, Contest, ContestDetail,
+    DataProvenance, Election, ElectionChoicesResponse, ElectionItem, ElectionOfficial,
+    ElectionsResponse, PollingLocation, RegistrationAddress, RegistrationResponse,
+    ResponseMetadata, VoterInfoResponse,
 };
 use crate::services::fec_api::{FecApiClient, FinanceJob};
 use crate::services::geocoder::GeocoderClient;
@@ -108,6 +108,17 @@ struct ApiPollingLocation {
     address: Option<ApiAddress>,
     #[serde(rename = "pollingHours")]
     polling_hours: Option<String>,
+    #[serde(rename = "latitude")]
+    latitude: Option<f64>,
+    #[serde(rename = "longitude")]
+    longitude: Option<f64>,
+    #[serde(rename = "startDate")]
+    start_date: Option<String>,
+    #[serde(rename = "endDate")]
+    end_date: Option<String>,
+    notes: Option<String>,
+    #[serde(default)]
+    services: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -212,6 +223,12 @@ struct ApiVoterInfoResponse {
     other_elections: Vec<ApiElection>,
     #[serde(rename = "pollingLocations", default)]
     polling_locations: Vec<ApiPollingLocation>,
+    #[serde(rename = "earlyVoteSites", default)]
+    early_vote_sites: Vec<ApiPollingLocation>,
+    #[serde(rename = "dropOffLocations", default)]
+    drop_off_locations: Vec<ApiPollingLocation>,
+    #[serde(default)]
+    mail_only: bool,
     #[serde(default)]
     contests: Vec<ApiContest>,
     #[serde(default)]
@@ -339,23 +356,36 @@ impl CivicApiClient {
         // any Nominatim fallbacks still serialize behind the geocoder's internal pacing mutex, so
         // the >=1s Nominatim policy is preserved. Results are keyed by the original index and
         // scattered back afterward, so polling-location order and values are unchanged.
-        let geocode_jobs: Vec<(usize, String)> = result
-            .polling_locations
-            .iter()
-            .enumerate()
-            .filter_map(|(i, loc)| loc.address.as_ref().map(|addr| (i, addr.clone())))
-            .collect();
+        let mut geocode_jobs: Vec<(usize, usize, String)> = Vec::new();
+        for (locations, category) in [
+            (&mut result.polling_locations, 0usize),
+            (&mut result.early_vote_sites, 1usize),
+            (&mut result.drop_off_locations, 2usize),
+        ] {
+            for (i, loc) in locations.iter().enumerate() {
+                if loc.lat.is_none() || loc.lng.is_none() {
+                    if let Some(addr) = loc.address.as_ref() {
+                        geocode_jobs.push((category, i, addr.clone()));
+                    }
+                }
+            }
+        }
 
-        let resolved = futures::future::join_all(
-            geocode_jobs
-                .into_iter()
-                .map(|(i, addr)| async move { (i, self.geocoder.geocode(&addr).await) }),
-        )
+        let resolved = futures::future::join_all(geocode_jobs.into_iter().map(
+            |(category, i, addr)| async move { (category, i, self.geocoder.geocode(&addr).await) },
+        ))
         .await;
 
-        for (i, coords) in resolved {
-            result.polling_locations[i].lat = coords.map(|(lat, _)| lat);
-            result.polling_locations[i].lng = coords.map(|(_, lng)| lng);
+        for (category, i, coords) in resolved {
+            let loc = match category {
+                0 => &mut result.polling_locations[i],
+                1 => &mut result.early_vote_sites[i],
+                _ => &mut result.drop_off_locations[i],
+            };
+            if let Some((lat, lng)) = coords {
+                loc.lat = Some(lat);
+                loc.lng = Some(lng);
+            }
         }
 
         self.cache.insert(key, result.clone()).await;
@@ -706,6 +736,45 @@ fn map_election_choices(primary: ApiElection, others: Vec<ApiElection>) -> Elect
 }
 
 fn map_voter_info(raw: ApiVoterInfoResponse) -> VoterInfoResponse {
+    let finder_url = raw.state.iter().find_map(|region| {
+        region
+            .election_administration_body
+            .as_ref()?
+            .voting_location_finder_url
+            .clone()
+    });
+    let map_location = |loc: ApiPollingLocation, category: &str| {
+        let (address, location_name) = match loc.address {
+            Some(addr) => {
+                let parts: Vec<String> = [addr.line1, addr.city, addr.state, addr.zip]
+                    .into_iter()
+                    .flatten()
+                    .collect();
+                (
+                    if parts.is_empty() {
+                        None
+                    } else {
+                        Some(parts.join(", "))
+                    },
+                    addr.location_name,
+                )
+            }
+            None => (None, None),
+        };
+        PollingLocation {
+            name: None,
+            address,
+            hours: loc.polling_hours,
+            location_name,
+            lat: loc.latitude,
+            lng: loc.longitude,
+            category: category.to_string(),
+            start_date: loc.start_date,
+            end_date: loc.end_date,
+            notes: loc.notes,
+            services: loc.services,
+        }
+    };
     VoterInfoResponse {
         metadata: ResponseMetadata::fresh(DataProvenance::CivicApi, false),
         election: Election {
@@ -716,32 +785,20 @@ fn map_voter_info(raw: ApiVoterInfoResponse) -> VoterInfoResponse {
         polling_locations: raw
             .polling_locations
             .into_iter()
-            .map(|loc| {
-                let (address, location_name) = match loc.address {
-                    Some(addr) => {
-                        let parts: Vec<String> = [addr.line1, addr.city, addr.state, addr.zip]
-                            .into_iter()
-                            .flatten()
-                            .collect();
-                        let address = if parts.is_empty() {
-                            None
-                        } else {
-                            Some(parts.join(", "))
-                        };
-                        (address, addr.location_name)
-                    }
-                    None => (None, None),
-                };
-                PollingLocation {
-                    name: None,
-                    address,
-                    hours: loc.polling_hours,
-                    location_name,
-                    lat: None,
-                    lng: None,
-                }
-            })
+            .map(|loc| map_location(loc, "election_day"))
             .collect(),
+        early_vote_sites: raw
+            .early_vote_sites
+            .into_iter()
+            .map(|loc| map_location(loc, "early_voting"))
+            .collect(),
+        drop_off_locations: raw
+            .drop_off_locations
+            .into_iter()
+            .map(|loc| map_location(loc, "ballot_drop_off"))
+            .collect(),
+        mail_only: raw.mail_only,
+        voting_location_finder_url: finder_url,
         contests: raw
             .contests
             .into_iter()
@@ -1273,6 +1330,9 @@ mod ballot_tests {
             },
             other_elections: Vec::new(),
             polling_locations: vec![],
+            early_vote_sites: vec![],
+            drop_off_locations: vec![],
+            mail_only: false,
             contests: vec![
                 api_contest("City Council", None),
                 api_contest("President of the United States", None),

@@ -26,6 +26,15 @@ const messages: Record<MessageKey, string> = {
   "voterInfo.pollingLocations": "Centros de Votación",
   "voterInfo.contests": "Contiendas",
   "voterInfo.unknownOffice": "Cargo Desconocido",
+  "polling.electionDay": "Día de elección",
+  "polling.earlyVoting": "Votación anticipada",
+  "polling.dropOff": "Entrega de boleta",
+  "polling.locationType": "Tipo de lugar de votación",
+  "polling.mailOnly": "Este es un distrito que solo usa voto por correo. No se proporcionó un lugar asignado para el día de elección; devuelve tu boleta completa según el método y plazo de tu oficina electoral.",
+  "polling.empty": "No se proporcionaron {type}. Consulta el buscador oficial para conocer la elegibilidad y los detalles actuales.",
+  "polling.finder": "Abrir buscador oficial de lugares",
+  "polling.available": "Disponible de {start} a {end}",
+  "polling.services": "Servicios: {services}",
 
   "elections.title": "Contiendas y Candidatos",
   "elections.subtitle":

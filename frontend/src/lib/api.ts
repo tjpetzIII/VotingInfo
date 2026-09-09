@@ -49,6 +49,13 @@ export interface PollingLocation {
   address: string | null;
   hours: string | null;
   location_name: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  category?: "election_day" | "early_voting" | "ballot_drop_off" | string;
+  start_date?: string | null;
+  end_date?: string | null;
+  notes?: string | null;
+  services?: string[];
 }
 
 export interface Candidate {
@@ -66,6 +73,10 @@ export interface VoterInfoResponse {
   metadata?: ResponseMetadata;
   election: Election;
   polling_locations: PollingLocation[];
+  early_vote_sites?: PollingLocation[];
+  drop_off_locations?: PollingLocation[];
+  mail_only?: boolean;
+  voting_location_finder_url?: string | null;
   contests: Contest[];
 }
 

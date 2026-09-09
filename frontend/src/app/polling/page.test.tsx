@@ -16,6 +16,12 @@ const VOTER_INFO = {
     { name: "City Hall", address: "1 Center Plaza", hours: "7am-8pm", location_name: "City Hall" },
   ],
   contests: [],
+  early_vote_sites: [
+    { name: "Library", address: "2 Main St", hours: "9am-5pm", location_name: "Central Library", category: "early_voting" },
+  ],
+  drop_off_locations: [],
+  mail_only: true,
+  voting_location_finder_url: "https://elections.example.gov/locations",
 };
 
 function renderPolling() {
@@ -60,5 +66,24 @@ describe("PollingPage auto-fetch from saved address", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     const requestedUrl = fetchMock.mock.calls[0][0] as string;
     expect(requestedUrl).toContain(encodeURIComponent("123 Main St, Austin, TX 78701"));
+  });
+
+  it("filters early voting and explains mail-only precincts", async () => {
+    localStorage.setItem("address", JSON.stringify({ street: "123 Main St", city: "Austin", state: "TX", zip: "78701" }));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => VOTER_INFO }));
+    renderPolling();
+    expect(await screen.findByText(/mail-only precinct/i)).toBeInTheDocument();
+    await screen.findByRole("button", { name: "Early voting" }).then((button) => button.click());
+    expect(screen.getByText("Central Library")).toBeInTheDocument();
+    expect(screen.queryByText("City Hall")).not.toBeInTheDocument();
+  });
+
+  it("shows an official finder link when a category is empty", async () => {
+    localStorage.setItem("address", JSON.stringify({ street: "123 Main St", city: "Austin", state: "TX", zip: "78701" }));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => VOTER_INFO }));
+    renderPolling();
+    await screen.findByText("General Election");
+    await screen.findByRole("button", { name: "Ballot drop-off" }).then((button) => button.click());
+    expect(screen.getByRole("link", { name: "Open official location finder" })).toHaveAttribute("href", VOTER_INFO.voting_location_finder_url);
   });
 });

@@ -24,6 +24,15 @@ const messages = {
   "voterInfo.pollingLocations": "Polling Locations",
   "voterInfo.contests": "Contests",
   "voterInfo.unknownOffice": "Unknown Office",
+  "polling.electionDay": "Election Day",
+  "polling.earlyVoting": "Early voting",
+  "polling.dropOff": "Ballot drop-off",
+  "polling.locationType": "Voting location type",
+  "polling.mailOnly": "This is a mail-only precinct. No assigned Election Day polling site was provided; return your completed ballot by the method and deadline shown by your election office.",
+  "polling.empty": "No {type} were provided. Check the official location finder for eligibility and current details.",
+  "polling.finder": "Open official location finder",
+  "polling.available": "Available {start} through {end}",
+  "polling.services": "Services: {services}",
 
   "elections.title": "Contests & Candidates",
   "elections.subtitle":

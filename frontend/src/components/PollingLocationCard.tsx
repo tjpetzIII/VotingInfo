@@ -1,15 +1,13 @@
-interface PollingLocation {
-  name: string | null;
-  address: string | null;
-  hours: string | null;
-  location_name: string | null;
-}
+import type { PollingLocation } from "@/lib/api";
+import { useIntl } from "react-intl";
 
 interface Props {
   location: PollingLocation;
 }
 
 export default function PollingLocationCard({ location }: Props) {
+  const intl = useIntl();
+  const type = location.category === "early_voting" ? intl.formatMessage({ id: "polling.earlyVoting" }) : location.category === "ballot_drop_off" ? intl.formatMessage({ id: "polling.dropOff" }) : intl.formatMessage({ id: "polling.electionDay" });
   const displayName =
     location.location_name ?? location.name ?? "Polling Location";
 
@@ -20,6 +18,7 @@ export default function PollingLocationCard({ location }: Props) {
   return (
     <div className="bg-white rounded-2xl shadow-md p-5 flex flex-col gap-3">
       <div>
+        <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">{type}</p>
         <h3 className="font-semibold text-gray-900 text-base">{displayName}</h3>
         {location.address && (
           <p className="text-sm text-gray-600 mt-1">{location.address}</p>
@@ -34,6 +33,9 @@ export default function PollingLocationCard({ location }: Props) {
           <p className="text-sm text-gray-700 mt-0.5">{location.hours}</p>
         </div>
       )}
+      {(location.start_date || location.end_date) && <p className="text-sm text-gray-700">{intl.formatMessage({ id: "polling.available" }, { start: location.start_date ?? "", end: location.end_date ?? "" })}</p>}
+      {location.notes && <p className="text-sm text-gray-600">{location.notes}</p>}
+      {!!location.services?.length && <p className="text-sm text-gray-600">{intl.formatMessage({ id: "polling.services" }, { services: location.services.join(", ") })}</p>}
 
       {mapsUrl && (
         <a

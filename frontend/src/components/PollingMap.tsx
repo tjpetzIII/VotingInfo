@@ -26,31 +26,7 @@ export default function PollingMap({ locations }: Props) {
   const [geocoded, setGeocoded] = useState<GeocodedLocation[]>([]);
 
   useEffect(() => {
-    const geocodeAll = async () => {
-      const results = await Promise.all(
-        locations.map(async (loc) => {
-          if (!loc.address) return null;
-          try {
-            const res = await fetch(
-              `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(loc.address)}`,
-              { headers: { "User-Agent": "VoteReady/1.0" } }
-            );
-            const data = await res.json();
-            if (!data[0]) return null;
-            return {
-              ...loc,
-              lat: parseFloat(data[0].lat),
-              lng: parseFloat(data[0].lon),
-            } as GeocodedLocation;
-          } catch {
-            return null;
-          }
-        })
-      );
-      setGeocoded(results.filter((r): r is GeocodedLocation => r !== null));
-    };
-
-    geocodeAll();
+    setGeocoded(locations.filter((loc): loc is GeocodedLocation => typeof loc.lat === "number" && typeof loc.lng === "number"));
   }, [locations]);
 
   const first = geocoded[0];

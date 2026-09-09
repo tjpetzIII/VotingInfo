@@ -25,7 +25,11 @@ pub struct ResponseMetadata {
 
 impl ResponseMetadata {
     pub fn fresh(provenance: DataProvenance, fallback_used: bool) -> Self {
-        Self { provenance, freshness: Freshness::Fresh, fallback_used }
+        Self {
+            provenance,
+            freshness: Freshness::Fresh,
+            fallback_used,
+        }
     }
 
     pub fn cached(mut self) -> Self {
@@ -35,7 +39,9 @@ impl ResponseMetadata {
 }
 
 impl Default for ResponseMetadata {
-    fn default() -> Self { Self::fresh(DataProvenance::CivicApi, false) }
+    fn default() -> Self {
+        Self::fresh(DataProvenance::CivicApi, false)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,6 +65,16 @@ pub struct PollingLocation {
     pub location_name: Option<String>,
     pub lat: Option<f64>,
     pub lng: Option<f64>,
+    #[serde(default)]
+    pub category: String,
+    #[serde(default)]
+    pub start_date: Option<String>,
+    #[serde(default)]
+    pub end_date: Option<String>,
+    #[serde(default)]
+    pub notes: Option<String>,
+    #[serde(default)]
+    pub services: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,6 +96,14 @@ pub struct VoterInfoResponse {
     pub metadata: ResponseMetadata,
     pub election: Election,
     pub polling_locations: Vec<PollingLocation>,
+    #[serde(default)]
+    pub early_vote_sites: Vec<PollingLocation>,
+    #[serde(default)]
+    pub drop_off_locations: Vec<PollingLocation>,
+    #[serde(default)]
+    pub mail_only: bool,
+    #[serde(default)]
+    pub voting_location_finder_url: Option<String>,
     pub contests: Vec<Contest>,
 }
 
@@ -379,6 +403,10 @@ mod tests {
                 election_day: "2025-01-01".into(),
             },
             polling_locations: vec![],
+            early_vote_sites: vec![],
+            drop_off_locations: vec![],
+            mail_only: false,
+            voting_location_finder_url: None,
             contests: vec![],
         };
         let json = serde_json::to_value(&resp).unwrap();
@@ -405,6 +433,11 @@ mod tests {
             location_name: None,
             lat: None,
             lng: None,
+            category: "election_day".into(),
+            start_date: None,
+            end_date: None,
+            notes: None,
+            services: vec![],
         };
         let json = serde_json::to_value(&loc).unwrap();
         assert!(json["name"].is_null());
