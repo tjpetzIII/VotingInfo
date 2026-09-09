@@ -85,7 +85,7 @@ export default function PollingPage() {
       if (parsed && formatted !== urlAddress) setAddress(parsed);
       runFetch(urlAddress);
     } else if (formatted) runFetch(formatted);
-  }, [formatted, runFetch, urlAddress]);
+  }, [formatted, runFetch, setAddress, urlAddress]);
 
   function handleAddressSubmit(address: string) {
     const parsed = parseFormattedAddress(address);
