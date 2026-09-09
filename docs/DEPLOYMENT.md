@@ -152,6 +152,9 @@ To avoid the 30-second cold start on Render's free tier, set up a free uptime mo
 
 Both platforms auto-deploy on every push to `main` — no extra setup needed. The existing GitHub Actions CI (`.github/workflows/ci.yml`) will continue to run on PRs.
 
+The personal voting plan is stored locally in the browser and contains only voter-entered method,
+date, site, and checklist values; it never stores party or candidate data.
+
 ## Election refresh worker
 
 Apply the numbered SQL migrations to Supabase before enabling refreshes. A scheduler can run

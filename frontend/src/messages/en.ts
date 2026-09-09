@@ -1,4 +1,7 @@
 const messages = {
+  "plan.title": "My Voting Plan",
+  "plan.subtitle": "Keep a private checklist for election day.",
+  "plan.method": "Voting method", "plan.choose": "Choose a method", "plan.inPerson": "Election day", "plan.early": "Early voting", "plan.mail": "Mail ballot", "plan.date": "Voting date", "plan.site": "Voting site", "plan.checklist": "My checklist", "plan.registration": "I checked my registration", "plan.identification": "I have required identification", "plan.planTime": "I planned when to vote", "plan.print": "Print plan", "plan.reset": "Reset plan", "plan.stale": "Election information changed. Review your plan.",
   "nav.allElections": "All Elections",
   "nav.voterInfo": "Voter Info",
   "nav.dates": "Key Dates",

@@ -7,6 +7,7 @@ import { LocaleProvider, useLocale } from "@/contexts/LocaleContext";
 import { AddressProvider, VOTING_DATA_CLEARED_EVENT } from "@/contexts/AddressContext";
 import { ElectionProvider } from "@/contexts/ElectionContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { PlanProvider } from "@/contexts/PlanContext";
 import enMessages from "@/messages/en";
 import esMessages from "@/messages/es";
 
@@ -50,9 +51,9 @@ export default function Providers({ children }: { children: ReactNode }) {
       <LocaleProvider>
         <IntlWrapper>
           <QueryClientProvider client={queryClient}>
-            <ElectionProvider><AuthProvider>
+            <PlanProvider><ElectionProvider><AuthProvider>
               {children}
-            </AuthProvider></ElectionProvider>
+            </AuthProvider></ElectionProvider></PlanProvider>
           </QueryClientProvider>
         </IntlWrapper>
       </LocaleProvider>

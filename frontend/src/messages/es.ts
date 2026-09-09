@@ -1,6 +1,7 @@
 import type { MessageKey } from "./en";
 
 const messages: Record<MessageKey, string> = {
+  "plan.title": "Mi Plan de Votación", "plan.subtitle": "Guarda una lista privada para el día de la elección.", "plan.method": "Método de votación", "plan.choose": "Elige un método", "plan.inPerson": "Día de elección", "plan.early": "Votación anticipada", "plan.mail": "Boleta por correo", "plan.date": "Fecha de votación", "plan.site": "Lugar de votación", "plan.checklist": "Mi lista", "plan.registration": "Verifiqué mi registro", "plan.identification": "Tengo la identificación necesaria", "plan.planTime": "Planeé cuándo votar", "plan.print": "Imprimir plan", "plan.reset": "Restablecer plan", "plan.stale": "La información electoral cambió. Revisa tu plan.",
   "nav.allElections": "Todas las Elecciones",
   "nav.voterInfo": "Información del Votante",
   "nav.dates": "Fechas Clave",

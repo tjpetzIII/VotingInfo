@@ -80,6 +80,7 @@ export default function Header() {
           >
             {intl.formatMessage({ id: "nav.dates" })}
           </Link>
+          <Link href="/plan" className={`${navLinkClass("/plan")} whitespace-nowrap`}>{intl.formatMessage({ id: "plan.title" })}</Link>
           {showBallotLink && (
             <Link
               href="/ballot"
