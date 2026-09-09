@@ -24,13 +24,21 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("en");
 
   useEffect(() => {
-    const stored = localStorage.getItem("locale") as Locale | null;
-    if (stored === "en" || stored === "es") setLocaleState(stored);
+    try {
+      const stored = localStorage.getItem("locale") as Locale | null;
+      if (stored === "en" || stored === "es") setLocaleState(stored);
+    } catch {
+      // Storage may be denied; the in-memory default remains usable.
+    }
   }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   function setLocale(newLocale: Locale) {
     setLocaleState(newLocale);
-    localStorage.setItem("locale", newLocale);
+    try { localStorage.setItem("locale", newLocale); } catch { /* continue in memory */ }
   }
 
   return (

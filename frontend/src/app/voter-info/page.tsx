@@ -25,13 +25,13 @@ import { useElection } from "@/contexts/ElectionContext";
 // Registration helpers (moved from registration/page.tsx)
 // ---------------------------------------------------------------------------
 
-function formatDeadline(raw: string): string {
+function formatDeadline(raw: string, locale: string): string {
   const parts = raw.split("/");
   if (parts.length === 3) {
     const [month, day, year] = parts.map(Number);
     const date = new Date(year, month - 1, day);
     if (!isNaN(date.getTime())) {
-      return date.toLocaleDateString("en-US", {
+      return date.toLocaleDateString(locale, {
         weekday: "long",
         month: "long",
         day: "numeric",
@@ -377,7 +377,7 @@ export default function VoterInfoPage() {
                       <div>
                         <SectionLabel id="registration.deadline" />
                         <p className="text-gray-900 font-semibold text-lg">
-                          {formatDeadline(registrationResult.registration_deadline)}
+                          {formatDeadline(registrationResult.registration_deadline, intl.locale)}
                         </p>
                       </div>
                     )}

@@ -40,10 +40,10 @@ function parseIsoDateLocal(iso: string): Date | null {
   return new Date(y, m - 1, d);
 }
 
-function formatDisplayDate(iso: string): string {
+function formatDisplayDate(iso: string, locale: string): string {
   const date = parseIsoDateLocal(iso);
   if (!date) return iso;
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(locale, {
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -101,7 +101,7 @@ function DateCard({ item, isNextUp }: { item: ElectionDate; isNextUp: boolean })
           {item.label}
         </p>
         <p className={`text-sm font-medium mt-0.5 ${isPast ? "text-gray-500 line-through" : "text-blue-600"}`}>
-          {formatDisplayDate(item.date)}
+          {formatDisplayDate(item.date, intl.locale)}
         </p>
       </div>
 
