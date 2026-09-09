@@ -1,4 +1,8 @@
-use axum::Json;
+use axum::{
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    Json,
+};
 use std::sync::Arc;
 
 use crate::{
@@ -6,6 +10,40 @@ use crate::{
     models::{ScrapeResult, StateDataResponse, StateElection, StateImportantDate},
     services::{scraper_utils::StateScraperConfig, supabase::SupabaseClient},
 };
+
+fn credentials_match(provided: &str, expected: &str) -> bool {
+    provided.len() == expected.len()
+        && provided
+            .bytes()
+            .zip(expected.bytes())
+            .fold(0u8, |acc, (a, b)| acc | (a ^ b))
+            == 0
+}
+
+/// POST /api/refresh — operator-only full refresh.
+pub async fn manual_refresh(
+    State(supabase): State<Arc<SupabaseClient>>,
+    headers: HeaderMap,
+) -> Result<(StatusCode, Json<crate::models::ScrapeResult>), AppError> {
+    let expected =
+        std::env::var("REFRESH_TOKEN").map_err(|_| AppError::Config("REFRESH_TOKEN".into()))?;
+    let provided = headers
+        .get("authorization")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .unwrap_or("");
+    if !credentials_match(provided, &expected) {
+        return Err(AppError::ValidationError("Unauthorized".into()));
+    }
+    let summary = crate::services::refresh::run(Default::default(), supabase).await;
+    Ok((
+        StatusCode::OK,
+        Json(crate::models::ScrapeResult {
+            elections_saved: summary.succeeded,
+            dates_saved: summary.succeeded,
+        }),
+    ))
+}
 
 /// POST /api/scrape/{state}
 ///
@@ -24,7 +62,11 @@ pub async fn scrape_state(
     let dates_saved = data.important_dates.len();
 
     supabase
-        .upsert(&config.elections_table(), "election_date,election_type", &data.elections)
+        .upsert(
+            &config.elections_table(),
+            "election_date,election_type",
+            &data.elections,
+        )
         .await?;
     supabase
         .upsert(
@@ -41,7 +83,10 @@ pub async fn scrape_state(
         "scrape completed"
     );
 
-    Ok(Json(ScrapeResult { elections_saved, dates_saved }))
+    Ok(Json(ScrapeResult {
+        elections_saved,
+        dates_saved,
+    }))
 }
 
 /// GET /api/{state}-elections
@@ -58,5 +103,20 @@ pub async fn get_state_data(
     let important_dates: Vec<StateImportantDate> =
         supabase.fetch_all(&config.dates_table(), None).await?;
 
-    Ok(Json(StateDataResponse { elections, important_dates }))
+    Ok(Json(StateDataResponse {
+        elections,
+        important_dates,
+    }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::credentials_match;
+
+    #[test]
+    fn credentials_require_exact_match() {
+        assert!(credentials_match("refresh-secret", "refresh-secret"));
+        assert!(!credentials_match("refresh-secret", "refresh-secret-2"));
+        assert!(!credentials_match("", "refresh-secret"));
+    }
 }

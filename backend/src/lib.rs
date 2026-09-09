@@ -82,6 +82,10 @@ pub fn api_router() -> Router<AppState> {
         .route(
             "/api/elections/dates",
             get(routes::elections::get_election_dates),
+        )
+        .route(
+            "/api/refresh",
+            axum::routing::post(routes::scraper::manual_refresh),
         );
 
     for config in STATE_SCRAPERS {

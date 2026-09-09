@@ -13,6 +13,7 @@ pub mod nc_scraper;
 pub mod nv_scraper;
 pub mod oh_scraper;
 pub mod pa_scraper;
+pub mod refresh;
 pub mod scraper_utils;
 pub mod state_registration;
 pub mod supabase;

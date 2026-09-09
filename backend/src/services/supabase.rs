@@ -1,5 +1,6 @@
 use reqwest::Client;
 use serde::{de::DeserializeOwned, Serialize};
+use serde_json::json;
 
 use crate::errors::AppError;
 
@@ -28,6 +29,26 @@ impl SupabaseClient {
             url: std::env::var("SUPABASE_URL").ok(),
             key: std::env::var("SUPABASE_KEY").ok(),
         }
+    }
+
+    pub async fn try_acquire_refresh_lease(&self, owner: &str, expires_at: &str) -> Result<bool, AppError> {
+        let base_url = self.url.as_deref().ok_or_else(|| AppError::Config("SUPABASE_URL".into()))?;
+        let key = self.key.as_deref().ok_or_else(|| AppError::Config("SUPABASE_KEY".into()))?;
+        let response = self.http.post(format!("{}/rest/v1/rpc/acquire_refresh_lease", base_url.trim_end_matches('/')))
+            .header("Authorization", format!("Bearer {key}")).header("apikey", key)
+            .json(&json!({"p_name": "election-data", "p_owner": owner, "p_expires_at": expires_at}))
+            .send().await?;
+        if !response.status().is_success() { return Err(AppError::ExternalApiError { status: response.status().as_u16(), message: "lease acquisition failed".into() }); }
+        Ok(response.json::<bool>().await.unwrap_or(false))
+    }
+
+    pub async fn release_refresh_lease(&self, owner: &str) -> Result<(), AppError> {
+        let base_url = self.url.as_deref().ok_or_else(|| AppError::Config("SUPABASE_URL".into()))?;
+        let key = self.key.as_deref().ok_or_else(|| AppError::Config("SUPABASE_KEY".into()))?;
+        let url = format!("{}/rest/v1/refresh_leases?name=eq.election-data&owner=eq.{}", base_url.trim_end_matches('/'), owner);
+        let response = self.http.delete(url).header("Authorization", format!("Bearer {key}")).header("apikey", key).send().await?;
+        if !response.status().is_success() { return Err(AppError::ExternalApiError { status: response.status().as_u16(), message: "lease release failed".into() }); }
+        Ok(())
     }
 
     /// Upsert a slice of records into `table`, merging on duplicate keys.

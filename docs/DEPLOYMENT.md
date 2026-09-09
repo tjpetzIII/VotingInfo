@@ -151,3 +151,13 @@ To avoid the 30-second cold start on Render's free tier, set up a free uptime mo
 ## Continuous Deployment
 
 Both platforms auto-deploy on every push to `main` — no extra setup needed. The existing GitHub Actions CI (`.github/workflows/ci.yml`) will continue to run on PRs.
+
+## Election refresh worker
+
+Apply the numbered SQL migrations to Supabase before enabling refreshes. A scheduler can run
+`cargo run --release --bin refresh_worker` from `backend/` periodically, or call `POST /api/refresh`
+with `Authorization: Bearer <REFRESH_TOKEN>`. Store `REFRESH_TOKEN`, `SUPABASE_URL`, and
+`SUPABASE_KEY` only in the deployment secret manager. The worker limits concurrency to three states,
+uses three attempts with per-attempt timeouts, and publishes each state only after its complete
+scrape succeeds; existing rows therefore remain the last-good snapshot on failure. Review the
+sanitized refresh counts in logs and rerun after correcting an upstream or credential failure.
