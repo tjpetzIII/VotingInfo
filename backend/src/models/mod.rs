@@ -372,6 +372,7 @@ mod tests {
     #[test]
     fn voter_info_response_with_empty_collections() {
         let resp = VoterInfoResponse {
+            metadata: ResponseMetadata::default(),
             election: Election {
                 id: "1".into(),
                 name: "Test".into(),
@@ -383,6 +384,16 @@ mod tests {
         let json = serde_json::to_value(&resp).unwrap();
         assert_eq!(json["polling_locations"].as_array().unwrap().len(), 0);
         assert_eq!(json["contests"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn response_metadata_uses_stable_wire_values_and_marks_cache_hits() {
+        let metadata = ResponseMetadata::fresh(DataProvenance::StateRegistrationFallback, true);
+        let json = serde_json::to_value(&metadata).unwrap();
+        assert_eq!(json["provenance"], "state_registration_fallback");
+        assert_eq!(json["freshness"], "fresh");
+        assert_eq!(json["fallback_used"], true);
+        assert_eq!(metadata.cached().freshness, Freshness::Cached);
     }
 
     #[test]
