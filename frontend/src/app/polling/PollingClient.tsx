@@ -33,7 +33,7 @@ type PageState =
 export default function PollingPage() {
   const { address: savedAddress, setAddress } = useAddress();
   const searchParams = useSearchParams();
-  const urlAddress = searchParams.get("address") ?? "";
+  const urlAddress = searchParams?.get("address") ?? "";
   const { electionId } = useElection();
   const intl = useIntl();
   const [pageState, setPageState] = useState<PageState>({ status: "idle" });

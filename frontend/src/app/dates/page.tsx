@@ -61,7 +61,7 @@ function formatDisplayDate(iso: string, locale: string): string {
 function DateCard({ item, isNextUp }: { item: ElectionDate; isNextUp: boolean }) {
   const intl = useIntl();
   const searchParams = useSearchParams();
-  const urlAddress = searchParams.get("address") ?? "";
+  const urlAddress = searchParams?.get("address") ?? "";
   const style = categoryStyle(item.category);
   const isPast = item.days_remaining < 0;
   const categoryLabel = intl.formatMessage({
