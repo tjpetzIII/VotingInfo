@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useIntl } from "react-intl";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import AddressForm from "@/components/AddressForm";
 import AddressSummary from "@/components/AddressSummary";
@@ -30,6 +31,8 @@ type PageState =
 
 export default function PollingPage() {
   const { address: savedAddress, setAddress } = useAddress();
+  const searchParams = useSearchParams();
+  const urlAddress = searchParams.get("address") ?? "";
   const { electionId } = useElection();
   const intl = useIntl();
   const [pageState, setPageState] = useState<PageState>({ status: "idle" });
@@ -77,8 +80,12 @@ export default function PollingPage() {
   // any page). The derived string is the effect key, so re-renders don't re-trigger fetches.
   const formatted = savedAddress ? formatAddress(savedAddress) : null;
   useEffect(() => {
-    if (formatted) runFetch(formatted);
-  }, [formatted, runFetch]);
+    if (urlAddress) {
+      const parsed = parseFormattedAddress(urlAddress);
+      if (parsed && formatted !== urlAddress) setAddress(parsed);
+      runFetch(urlAddress);
+    } else if (formatted) runFetch(formatted);
+  }, [formatted, runFetch, urlAddress]);
 
   function handleAddressSubmit(address: string) {
     const parsed = parseFormattedAddress(address);
@@ -89,6 +96,9 @@ export default function PollingPage() {
     } else {
       runFetch(address);
     }
+    const url = new URL(window.location.href);
+    url.searchParams.set("address", address);
+    window.history.pushState({}, "", url.toString());
   }
 
   return (
@@ -104,6 +114,7 @@ export default function PollingPage() {
 
       <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
         <AddressForm
+          initialValues={parseFormattedAddress(urlAddress) ?? savedAddress}
           onSubmit={handleAddressSubmit}
           loading={pageState.status === "loading"}
           submitLabel="Find My Polling Place"

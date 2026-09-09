@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useIntl, FormattedMessage } from "react-intl";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { serializeIcs } from "@/lib/ics";
 import { fetchElectionDates, type ElectionDate, type ResponseMetadata } from "@/lib/api";
@@ -59,6 +60,8 @@ function formatDisplayDate(iso: string, locale: string): string {
 
 function DateCard({ item, isNextUp }: { item: ElectionDate; isNextUp: boolean }) {
   const intl = useIntl();
+  const searchParams = useSearchParams();
+  const urlAddress = searchParams.get("address") ?? "";
   const style = categoryStyle(item.category);
   const isPast = item.days_remaining < 0;
   const categoryLabel = intl.formatMessage({
@@ -165,8 +168,12 @@ export default function DatesPage() {
   // Auto-fetch whenever a saved address is present (mount-time hydration or a change from any page).
   const formatted = savedAddress ? formatAddress(savedAddress) : null;
   useEffect(() => {
-    if (formatted) runFetch(formatted);
-  }, [formatted, runFetch]);
+    if (urlAddress) {
+      const parsed = parseFormattedAddress(urlAddress);
+      if (parsed && formatted !== urlAddress) setAddress(parsed);
+      runFetch(urlAddress);
+    } else if (formatted) runFetch(formatted);
+  }, [formatted, runFetch, urlAddress]);
 
   function handleSubmit(address: string) {
     const parsed = parseFormattedAddress(address);
@@ -175,6 +182,9 @@ export default function DatesPage() {
     } else {
       runFetch(address);
     }
+    const url = new URL(window.location.href);
+    url.searchParams.set("address", address);
+    window.history.pushState({}, "", url.toString());
   }
 
   const nextUpIndex = dates?.findIndex((d) => d.days_remaining >= 0) ?? -1;
@@ -202,6 +212,7 @@ export default function DatesPage() {
             <FormattedMessage id="dates.subtitle" />
           </p>
           <AddressForm
+            initialValues={parseFormattedAddress(urlAddress) ?? savedAddress}
             onSubmit={handleSubmit}
             loading={loading}
             submitLabel={intl.formatMessage({ id: "dates.submit" })}
