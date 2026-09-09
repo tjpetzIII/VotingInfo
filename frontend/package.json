@@ -41,7 +41,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "jsdom": "30.0.1",
-    "postcss": "^8",
+    "postcss": "^8.5.18",
     "tailwindcss": "^4",
     "typescript": "^6",
     "vitest": "^4.1.10"
