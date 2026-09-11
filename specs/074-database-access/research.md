@@ -1,0 +1,8 @@
+# Research: VOT-75
+
+- Decision: no anon/authenticated direct table access. Rationale: frontend Supabase consumers perform auth only; `backend/src/routes/scraper.rs` reads election data using `SupabaseClient`. Alternative public SELECT adds unnecessary database exposure.
+- Decision: service_role is the backend operator role. Rationale: `backend/src/services/supabase.rs` sends SUPABASE_KEY as both apikey and Bearer authorization. Preserve CRUD and lease RPC with explicit grants. Do not add SECURITY DEFINER.
+- Decision: protect both existing histories, without consolidating them. VOT-79 owns canonical migration source; VOT-66 owns atomic snapshot semantics. Supabase history currently lacks eight states and refresh controls.
+- Decision: runtime role tests against PostgreSQL, including permissive existing grants and RLS tested after temporary grants. Text matching alone does not prove permissions.
+- Documentation reviewed 2026-09-11: [RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [functions](https://supabase.com/docs/guides/database/functions), [changelog](https://supabase.com/changelog). Grants and RLS are separate; function EXECUTE defaults to PUBLIC; service_role bypasses RLS. Changelog index reviewed for breaking changes; no relevant change to these PostgreSQL primitives.
+- Live inspection: Supabase list_projects identifies VotingApp as `yceklkqeopsluezoeufo`, INACTIVE. Read-only SQL attempt timed out. After the owner restarted the project, read-only inspection completed. See docs/DATABASE_ACCESS.md for observed grants, RLS, missing control objects and public/graphql_public exposure.
