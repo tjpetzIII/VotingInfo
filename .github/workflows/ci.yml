@@ -4,6 +4,13 @@ on:
   pull_request:
 
 jobs:
+  database:
+    name: Database permissions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 backend/tests/test_database_permissions.py
+
   backend:
     name: Backend
     runs-on: ubuntu-latest
